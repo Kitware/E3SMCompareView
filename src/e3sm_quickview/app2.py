@@ -130,6 +130,10 @@ class EAMApp(TrameApp):
                 ProjectionRobinson="projection = ['Robinson']",
                 ProjectionMollweide="projection = ['Mollweide']",
                 ToggleViewLock="lock_views = !lock_views",
+                FileOpen=(self.toggle_toolbar, "['load-data']"),
+                SaveState="trigger('download_state')",
+                UploadState="utils.get('document').querySelector('#fileUpload').click()",
+                ToggleHelp="compact_drawer = !compact_drawer",
             ) as mt:
                 mt.bind(["r"], "ResetCamera")
                 mt.bind(["alt+0", "0"], "SizeAuto")
@@ -143,6 +147,11 @@ class EAMApp(TrameApp):
                 mt.bind("e", "ProjectionEquidistant")
                 mt.bind("b", "ProjectionRobinson")
                 mt.bind("m", "ProjectionMollweide")
+
+                mt.bind("f", "FileOpen")
+                mt.bind("d", "SaveState")
+                mt.bind("u", "UploadState")
+                mt.bind("h", "ToggleHelp")
 
                 mt.bind("l", "ToolbarLayout")
                 mt.bind("c", "ToolbarCrop")
