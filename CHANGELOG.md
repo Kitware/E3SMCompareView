@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v1.1.1 (2025-10-27)
+
+### Bug Fixes
+
+- **colormap**: Use sorted list and add search box
+  ([`7ae0f6c`](https://github.com/Kitware/QuickView/commit/7ae0f6cc284ed2ff0ad4f62f73881bc3423a1174))
+
+- **doc**: Update landing page with shortcuts
+  ([`6c48fca`](https://github.com/Kitware/QuickView/commit/6c48fcaa4b660d2b81ebcf15f6541b8a54a5b74b))
+
+- **keyboard**: Add shortcut for FileOpen/DownloadState/UploadState/Help
+  ([`38d0492`](https://github.com/Kitware/QuickView/commit/38d0492d20cd222f3b2d26e64fe6a96f5e1a5cf4))
+
+### Continuous Integration
+
+- Remove packaging from manual step
+  ([`70cf460`](https://github.com/Kitware/QuickView/commit/70cf460d6358bc7aa87b936284ebc7ba2a5ff1e5))
+
+
 ## v1.1.0 (2025-10-24)
 
 ### Bug Fixes
