@@ -1,7 +1,7 @@
 name: "Package"
 
 on:
-  workflow_dispatch:  # manually triggered
+  # workflow_dispatch:  # manually triggered
   workflow_run:
     workflows: ["Release"]
     types: [completed]
