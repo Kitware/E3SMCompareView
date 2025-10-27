@@ -26,6 +26,8 @@ class ToolFileLoading(Tool):
             title="File loading",
             description="Load files to explore. Those could be simulation and connectivity files or even a state file pointing to those files.",
         )
+        with self, v3.Template(v_slot_append=True):
+            v3.VHotkey(keys="f", variant="contained", inline=True)
 
 
 class ToolFieldSelection(Tool):
@@ -59,6 +61,9 @@ class ToolStateImportExport(Tool):
             title="State import/export",
             description="Export the application state into a small text file. The same file can then be imported to restore that application state.",
         )
+        with self, v3.Template(v_slot_append=True):
+            v3.VHotkey(keys="d", variant="contained", inline=True)
+            v3.VHotkey(keys="u", variant="contained", inline=True)
 
 
 class ToolMapProjection(Tool):
@@ -211,6 +216,11 @@ class LandingPage(v3.VContainer):
             with v3.VRow():
                 with v3.VCol(cols=6):
                     with v3.VRow(classes="ma-0 pb-4"):
+                        v3.VLabel("Toggle help")
+                        v3.VSpacer()
+                        v3.VHotkey(keys="h", variant="contained", inline=True)
+
+                    with v3.VRow(classes="ma-0 pb-4"):
                         v3.VLabel("Reset Camera")
                         v3.VSpacer()
                         v3.VHotkey(keys="r", variant="contained", inline=True)
@@ -219,6 +229,23 @@ class LandingPage(v3.VContainer):
                         v3.VLabel("Toggle view interaction lock")
                         v3.VSpacer()
                         v3.VHotkey(keys="space", variant="contained", inline=True)
+
+                    v3.VDivider(classes="mb-4")
+
+                    with v3.VRow(classes="ma-0 pb-4"):
+                        v3.VLabel("File Open")
+                        v3.VSpacer(classes="mt-2")
+                        v3.VHotkey(keys="f", variant="contained", inline=True)
+
+                    with v3.VRow(classes="ma-0 pb-4"):
+                        v3.VLabel("Download state")
+                        v3.VSpacer(classes="mt-2")
+                        v3.VHotkey(keys="d", variant="contained", inline=True)
+
+                    with v3.VRow(classes="ma-0 pb-4"):
+                        v3.VLabel("Upload state")
+                        v3.VSpacer(classes="mt-2")
+                        v3.VHotkey(keys="u", variant="contained", inline=True)
 
                     v3.VDivider(classes="mb-4")
 
