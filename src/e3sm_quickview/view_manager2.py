@@ -48,6 +48,10 @@ TYPE_COLOR = {
 }
 
 
+def lut_name(element):
+    return element.get("name").lower()
+
+
 class ViewConfiguration(StateDataModel):
     variable: str
     preset: str = "Inferno (matplotlib)"
@@ -67,6 +71,7 @@ class ViewConfiguration(StateDataModel):
     break_row: bool = False
     menu: bool = False
     swap_group: list[str]
+    search: str | None
 
 
 class VariableView(TrameComponent):
@@ -311,9 +316,18 @@ class ViewManager(TrameComponent):
 
         pvw.initialize(self.server)
 
-        self.state.luts_normal = {k: v["normal"] for k, v in COLORBAR_CACHE.items()}
-        self.state.luts_inverted = {k: v["inverted"] for k, v in COLORBAR_CACHE.items()}
-        self.state.safe_color = {name: True for name in COLOR_BLIND_SAFE}
+        self.state.luts_normal = [
+            {"name": k, "url": v["normal"], "safe": k in COLOR_BLIND_SAFE}
+            for k, v in COLORBAR_CACHE.items()
+        ]
+        self.state.luts_inverted = [
+            {"name": k, "url": v["inverted"], "safe": k in COLOR_BLIND_SAFE}
+            for k, v in COLORBAR_CACHE.items()
+        ]
+
+        # Sort lists
+        self.state.luts_normal.sort(key=lut_name)
+        self.state.luts_inverted.sort(key=lut_name)
 
     def refresh_ui(self, **_):
         for view in self._var2view.values():

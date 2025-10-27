@@ -120,63 +120,72 @@ def create_bottom_bar(config, update_color_preset):
                 ),
                 close_on_content_click=False,
             ):
-                with v3.VCard(style="max-width: 360px;"):
-                    with v3.VCardItem(classes="pb-0"):
-                        v3.VIconBtn(
-                            raw_attrs=[
-                                '''v-tooltip:bottom="config.color_blind ? 'Colorblind safe presets' : 'All color presets'"'''
-                            ],
-                            icon=(
-                                "config.color_blind ? 'mdi-shield-check-outline' : 'mdi-palette'",
-                            ),
-                            click="config.color_blind = !config.color_blind",
-                            size="small",
-                            text="Colorblind safe",
-                            variant="text",
-                        )
-                        v3.VIconBtn(
-                            raw_attrs=[
-                                '''v-tooltip:bottom="config.invert ? 'Inverted preset' : 'Normal preset'"'''
-                            ],
-                            icon=(
-                                "config.invert ? 'mdi-invert-colors' : 'mdi-invert-colors-off'",
-                            ),
-                            click="config.invert = !config.invert",
-                            size="small",
-                            text="Invert",
-                            variant="text",
-                        )
-                        v3.VIconBtn(
-                            raw_attrs=[
-                                '''v-tooltip:bottom="config.use_log_scale ? 'Use log scale' : 'Use linear scale'"'''
-                            ],
-                            icon=(
-                                "config.use_log_scale ? 'mdi-math-log' : 'mdi-stairs'",
-                            ),
-                            click="config.use_log_scale = !config.use_log_scale",
-                            size="small",
-                            text=(
-                                "config.use_log_scale ? 'Log scale' : 'Linear scale'",
-                            ),
-                            variant="text",
-                        )
-                        v3.VIconBtn(
-                            raw_attrs=[
-                                '''v-tooltip:bottom="config.override_range ? 'Use custom range' : 'Use data range'"'''
-                            ],
-                            icon=(
-                                "config.override_range ? 'mdi-arrow-expand-horizontal' : 'mdi-pencil'",
-                            ),
-                            click="config.override_range = !config.override_range",
-                            size="small",
-                            text="Use data range",
-                            variant="text",
-                        )
-
-                        with v3.Template(v_slot_append=True):
-                            v3.VLabel(
-                                "{{ config.preset }}",
-                                classes="mr-2 text-caption",
+                with v3.VCard(style="max-width: 360px;min-width: 360px;"):
+                    with v3.VCardItem(classes="py-0 px-2"):
+                        with html.Div(classes="d-flex align-center"):
+                            v3.VIconBtn(
+                                raw_attrs=[
+                                    '''v-tooltip:bottom="config.color_blind ? 'Colorblind safe presets' : 'All color presets'"'''
+                                ],
+                                icon=(
+                                    "config.color_blind ? 'mdi-shield-check-outline' : 'mdi-palette'",
+                                ),
+                                click="config.color_blind = !config.color_blind",
+                                size="small",
+                                text="Colorblind safe",
+                                variant="text",
+                            )
+                            v3.VIconBtn(
+                                raw_attrs=[
+                                    '''v-tooltip:bottom="config.invert ? 'Inverted preset' : 'Normal preset'"'''
+                                ],
+                                icon=(
+                                    "config.invert ? 'mdi-invert-colors' : 'mdi-invert-colors-off'",
+                                ),
+                                click="config.invert = !config.invert",
+                                size="small",
+                                text="Invert",
+                                variant="text",
+                            )
+                            v3.VIconBtn(
+                                raw_attrs=[
+                                    '''v-tooltip:bottom="config.use_log_scale ? 'Use log scale' : 'Use linear scale'"'''
+                                ],
+                                icon=(
+                                    "config.use_log_scale ? 'mdi-math-log' : 'mdi-stairs'",
+                                ),
+                                click="config.use_log_scale = !config.use_log_scale",
+                                size="small",
+                                text=(
+                                    "config.use_log_scale ? 'Log scale' : 'Linear scale'",
+                                ),
+                                variant="text",
+                            )
+                            v3.VIconBtn(
+                                raw_attrs=[
+                                    '''v-tooltip:bottom="config.override_range ? 'Use custom range' : 'Use data range'"'''
+                                ],
+                                icon=(
+                                    "config.override_range ? 'mdi-arrow-expand-horizontal' : 'mdi-pencil'",
+                                ),
+                                click="config.override_range = !config.override_range",
+                                size="small",
+                                text="Use data range",
+                                variant="text",
+                            )
+                            v3.VTextField(
+                                v_model="config.search",
+                                clearable=True,
+                                placeholder=("config.preset",),
+                                click_clear="config.search = null",
+                                single_line=True,
+                                variant="solo",
+                                density="compact",
+                                flat=True,
+                                hide_details="auto",
+                                # style="min-width: 150px;",
+                                classes="d-inline",
+                                reverse=True,
                             )
                             v3.VIconBtn(
                                 icon="mdi-close",
@@ -184,6 +193,7 @@ def create_bottom_bar(config, update_color_preset):
                                 text="Close",
                                 click="config.menu=false",
                             )
+
                     with v3.VCardItem(v_show="config.override_range", classes="py-0"):
                         v3.VTextField(
                             v_model="config.color_value_min",
@@ -205,36 +215,21 @@ def create_bottom_bar(config, update_color_preset):
                             classes="mt-2",
                             error=("!config.color_value_max_valid",),
                         )
-                        # v3.VNumberInput(
-                        #     model_value=("config.color_range[1]",),
-                        #     update_modelValue="config.color_range = [config.color_range[0], Number($event)]",
-                        #     hide_details=True,
-                        #     density="compact",
-                        #     variant="outlined",
-                        #     flat=True,
-                        #     label="Max",
-                        #     classes="mt-2",
-                        #     control_variant="hidden",
-                        #     precision=("15",),
-                        #     step=(
-                        #         "Math.max(0.0001, (config.color_range[1] - config.color_range[0]) / 255)",
-                        #     ),
-                        # )
-                    v3.VDivider(classes="mt-2")
+                    v3.VDivider()
                     with v3.VList(density="compact", max_height="40vh"):
                         with v3.VListItem(
-                            v_for="url, name in (config.invert ? luts_inverted : luts_normal)",
-                            v_show="!config.color_blind || safe_color[name]",
-                            key="name",
-                            subtitle=("name",),
+                            v_for="entry in (config.invert ? luts_inverted : luts_normal)",
+                            v_show="(config.search?.length ? entry.name.toLowerCase().includes(config.search.toLowerCase()) : 1) && (!config.color_blind || entry.safe)",
+                            key="entry.name",
+                            subtitle=("entry.name",),
                             click=(
                                 update_color_preset,
-                                "[name, config.invert, config.use_log_scale]",
+                                "[entry.name, config.invert, config.use_log_scale]",
                             ),
-                            active=("config.preset === name",),
+                            active=("config.preset === entry.name",),
                         ):
                             html.Img(
-                                src=("url",),
+                                src=("entry.url",),
                                 style="width:100%;min-width:20rem;height:1rem;",
                                 classes="rounded",
                             )
