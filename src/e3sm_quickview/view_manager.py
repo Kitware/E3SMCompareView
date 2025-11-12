@@ -1,774 +1,521 @@
-import paraview.servermanager as sm
+import math
 
-from trame.widgets import paraview as pvWidgets
-from trame.decorators import TrameApp, trigger, change
+from trame.app import TrameComponent
+from trame.ui.html import DivLayout
+from trame.widgets import paraview as pvw, vuetify3 as v3, client, html
+from trame.decorators import controller
 
-from paraview.simple import (
-    Delete,
-    Show,
-    CreateRenderView,
-    ColorBy,
-    GetColorTransferFunction,
-    AddCameraLink,
-    Render,
-)
+from trame_dataclass.core import StateDataModel
 
-from e3sm_quickview.pipeline import EAMVisSource
-from typing import Dict, List, Optional
+from paraview import simple
 
-from e3sm_quickview.utils.math import calculate_weighted_average
-from e3sm_quickview.utils.color import get_cached_colorbar_image
-from e3sm_quickview.utils.geometry import (
-    generate_annotations as generate_map_annotations,
-)
-
-# Constants for camera and display
-LABEL_OFFSET_FACTOR = 0.075  # Factor for offsetting labels from map edge
-ZOOM_IN_FACTOR = 0.95  # Scale factor for zooming in
-ZOOM_OUT_FACTOR = 1.05  # Scale factor for zooming out
-DEFAULT_MARGIN = 1.05  # Default margin for viewport fitting (5% margin)
-GRATICULE_INTERVAL = 30  # Default interval for map graticule in degrees
-PAN_OFFSET_RATIO = 0.05  # Ratio of extent to use for pan offset (5%)
-
-# Grid layout constants
-DEFAULT_GRID_COLUMNS = 3  # Number of columns in default grid layout
-DEFAULT_GRID_WIDTH = 4  # Default width of grid items
-DEFAULT_GRID_HEIGHT = 3  # Default height of grid items
+from e3sm_quickview.components import view
+from e3sm_quickview.utils.color import get_cached_colorbar_image, COLORBAR_CACHE
+from e3sm_quickview.presets import COLOR_BLIND_SAFE
 
 
-class ViewRegistry:
-    """Central registry for managing views"""
+def auto_size_to_col(size):
+    if size == 1:
+        return 12
 
-    def __init__(self):
-        self._contexts: Dict[str, "ViewContext"] = {}
-        self._view_order: List[str] = []
+    if size >= 8 and size % 2 == 0:
+        return 3
 
-    def register_view(self, variable: str, context: "ViewContext"):
-        """Register a new view or update existing one"""
-        self._contexts[variable] = context
-        if variable not in self._view_order:
-            self._view_order.append(variable)
+    if size % 3 == 0:
+        return 4
 
-    def get_view(self, variable: str) -> Optional["ViewContext"]:
-        """Get view context for a variable"""
-        return self._contexts.get(variable)
+    if size % 2 == 0:
+        return 6
 
-    def remove_view(self, variable: str):
-        """Remove a view from the registry"""
-        if variable in self._contexts:
-            del self._contexts[variable]
-            self._view_order.remove(variable)
-
-    def get_ordered_views(self) -> List["ViewContext"]:
-        """Get all views in order they were added"""
-        return [
-            self._contexts[var] for var in self._view_order if var in self._contexts
-        ]
-
-    def get_all_variables(self) -> List[str]:
-        """Get all registered variable names"""
-        return list(self._contexts.keys())
-
-    def items(self):
-        """Iterate over variable-context pairs"""
-        return self._contexts.items()
-
-    def clear(self):
-        """Clear all registered views"""
-        self._contexts.clear()
-        self._view_order.clear()
-
-    def __len__(self):
-        """Get number of registered views"""
-        return len(self._contexts)
-
-    def __contains__(self, variable: str):
-        """Check if a variable is registered"""
-        return variable in self._contexts
+    return auto_size_to_col(size + 1)
 
 
-class ViewConfiguration:
-    """Mutable configuration for a view - what the user can control"""
+COL_SIZE_LOOKUP = {
+    0: auto_size_to_col,
+    1: 12,
+    2: 6,
+    3: 4,
+    4: 3,
+    6: 2,
+    12: 1,
+    "flow": None,
+}
 
-    def __init__(
-        self,
-        variable: str,
-        colormap: str,
-        use_log_scale: bool = False,
-        invert_colors: bool = False,
-        min_value: float = None,
-        max_value: float = None,
-        override_range: bool = False,
-    ):
-        self.variable = variable
-        self.colormap = colormap
-        self.use_log_scale = use_log_scale
-        self.invert_colors = invert_colors
-        self.min_value = min_value
-        self.max_value = max_value
-        self.override_range = override_range  # True when user manually sets min/max
+TYPE_COLOR = {
+    "s": "success",
+    "i": "info",
+    "m": "warning",
+}
 
 
-class ViewState:
-    """Runtime state for a view - ParaView objects"""
-
-    def __init__(
-        self,
-        view_proxy=None,
-        data_representation=None,
-    ):
-        self.view_proxy = view_proxy
-        self.data_representation = data_representation
+def lut_name(element):
+    return element.get("name").lower()
 
 
-class ViewContext:
-    """Complete context for a rendered view combining configuration and state"""
-
-    def __init__(self, config: ViewConfiguration, state: ViewState, index: int):
-        self.config = config
-        self.state = state
-        self.index = index
-
-
-def apply_projection(projection, point):
-    if projection is None:
-        return point
-    else:
-        new = projection.transform(point[0] - 180, point[1])
-        return [new[0], new[1], 1.0]
-
-
-def generate_annotations(long, lat, projection, center):
-    return generate_map_annotations(
-        long,
-        lat,
-        projection,
-        center,
-        interval=GRATICULE_INTERVAL,
-        label_offset_factor=LABEL_OFFSET_FACTOR,
-    )
+class ViewConfiguration(StateDataModel):
+    variable: str
+    preset: str = "Inferno (matplotlib)"
+    preset_img: str
+    invert: bool = False
+    color_blind: bool = False
+    use_log_scale: bool = False
+    color_value_min: str = "0"
+    color_value_max: str = "1"
+    color_value_min_valid: bool = True
+    color_value_max_valid: bool = True
+    color_range: list[float] = (0, 1)
+    override_range: bool = False
+    order: int = 0
+    size: int = 4
+    offset: int = 0
+    break_row: bool = False
+    menu: bool = False
+    swap_group: list[str]
+    search: str | None
 
 
-def build_color_information(state: map):
-    vars = state["variables"]
-    colors = state["varcolor"]
-    logscl = state["uselogscale"]
-    invert = state["invert"]
-    varmin = state["varmin"]
-    varmax = state["varmax"]
-    # Get override_range from state if available
-    override_range = state.get("override_range", None)
-    # Store layout from state if available for backward compatibility
-    layout = state.get("layout", None)
-
-    registry = ViewRegistry()
-    for index, var in enumerate(vars):
-        # Use provided override_range if available
-        if override_range is not None and index < len(override_range):
-            override = override_range[index]
-        else:
-            # Legacy behavior for older saved states without override_range
-            override = True
-
-        config = ViewConfiguration(
-            variable=var,
-            colormap=colors[index],
-            use_log_scale=logscl[index],
-            invert_colors=invert[index],
-            min_value=varmin[index],
-            max_value=varmax[index],
-            override_range=override,
-        )
-        view_state = ViewState()
-        context = ViewContext(config, view_state, index)
-        registry.register_view(var, context)
-
-    # Store layout info in registry for later use
-    if layout:
-        registry._saved_layout = [item.copy() for item in layout]
-
-    return registry
-
-
-@TrameApp()
-class ViewManager:
-    def __init__(self, source: EAMVisSource, server, state):
-        self.server = server
+class VariableView(TrameComponent):
+    def __init__(self, server, source, variable_name, variable_type):
+        super().__init__(server)
+        self.config = ViewConfiguration(server, variable=variable_name)
         self.source = source
-        self.state = state
-        self.widgets = []
-        self.registry = ViewRegistry()  # Central registry for view management
-        self.to_delete = []
+        self.variable_name = variable_name
+        self.variable_type = variable_type
+        self.name = f"view_{self.variable_name}"
+        self.view = simple.CreateRenderView()
+        self.view.GetRenderWindow().SetOffScreenRendering(True)
+        self.view.InteractionMode = "2D"
+        self.view.OrientationAxesVisibility = 0
+        self.view.UseColorPaletteForBackground = 0
+        self.view.BackgroundColorMode = "Gradient"
+        self.view.CameraParallelProjection = 1
+        self.view.Size = 0  # make the interactive widget non responsive
+        self.representation = simple.Show(
+            proxy=source.views["atmosphere_data"],
+            view=self.view,
+        )
 
-    def get_default_colormap(self):
-        """Get default colormap from interface or fallback"""
-        # Try to get from the server's interface instance
-        if self.state.use_cvd_colors:
-            return "batlow"
-        # Fallback to a reasonable default
-        return "Cool to Warm (Extended)"
+        # Lookup table color management
+        simple.ColorBy(self.representation, ("CELLS", variable_name))
+        self.lut = simple.GetColorTransferFunction(variable_name)
+        self.lut.NanOpacity = 0.0
 
-    @change("pipeline_valid")
-    def _on_change_pipeline_valid(self, pipeline_valid, **kwargs):
-        """Clear view registry when pipeline becomes invalid."""
-        if not pipeline_valid:
-            print("Clearing registry")
-            # Clear all views and variables from registry
-            self.registry.clear()
-            # Clear widgets and colors tracking
-            del self.state.views[:]
-            del self.state.layout[:]
-            self.state.dirty("views")
-            self.state.dirty("layout")
+        self.view.ResetActiveCameraToNegativeZ()
+        self.view.ResetCamera(True, 0.9)
+        self.disable_render = False
 
-    def close_view(self, var, index, layout_cache: map):
-        # Clear cache and remove layout and widget entry
-        with self.state as state:
-            self.registry.remove_view(var)
-            state.varcolor.pop(index)
-            state.varmin.pop(index)
-            state.varmax.pop(index)
-            state.uselogscale.pop(index)
-            state.override_range.pop(index)
-            state.invert.pop(index)
-            state.colorbar_images.pop(index)
-            self.widgets.pop(index)
-
-        self.state.dirty("varcolor")
-        self.state.dirty("varmin")
-        self.state.dirty("varmax")
-        self.state.dirty("uselogscale")
-        self.state.dirty("override_range")
-        self.state.dirty("invert")
-        self.state.dirty("colorbar_images")
-        self.rebuild_after_close(layout_cache)
-
-    def update_views_for_timestep(self):
-        if len(self.registry) == 0:
-            return
-        data = sm.Fetch(self.source.views["atmosphere_data"])
-
-        first_view = None
-        for var, context in self.registry.items():
-            index = self.state.variables.index(var)
-            varavg = self.compute_average(var, vtkdata=data)
-            # Directly set average in trame state
-            self.state.varaverage[index] = varavg
-            self.state.dirty("varaverage")
-            if not context.config.override_range:
-                context.state.data_representation.RescaleTransferFunctionToDataRange(
-                    False, True
-                )
-                range = self.compute_range(var=var)
-                context.config.min_value = range[0]
-                context.config.max_value = range[1]
-            self.sync_color_config_to_state(index, context)
-            self.generate_colorbar_image(index)
-
-            # Track the first view for camera fitting
-            if first_view is None and context.state.view_proxy:
-                first_view = context.state.view_proxy
-
-        if first_view is not None:
-            first_view.ResetCamera(True, 0.9)
-
-    def refresh_view_display(self, context: ViewContext):
-        if not context.config.override_range:
-            context.state.data_representation.RescaleTransferFunctionToDataRange(
-                False, True
-            )
-        rview = context.state.view_proxy
-
-        Render(rview)
-        # ResetCamera(rview)
-
-    def configure_new_view(self, var, context: ViewContext, sources):
-        rview = context.state.view_proxy
-
-        # Update unique sources to all render views
-        data = sources["atmosphere_data"]
-        rep = Show(data, rview)
-        context.state.data_representation = rep
-        ColorBy(rep, ("CELLS", var))
-        coltrfunc = GetColorTransferFunction(var)
-        coltrfunc.ApplyPreset(context.config.colormap, True)
-        coltrfunc.NanOpacity = 0.0
-
-        # Apply log scale if configured
-        if context.config.use_log_scale:
-            coltrfunc.MapControlPointsToLogSpace()
-            coltrfunc.UseLogScale = 1
-
-        # Apply inversion if configured
-        if context.config.invert_colors:
-            coltrfunc.InvertTransferFunction()
-
-        # Ensure the color transfer function is scaled to the data range
-        if not context.config.override_range:
-            rep.RescaleTransferFunctionToDataRange(False, True)
-        else:
-            coltrfunc.RescaleTransferFunction(
-                context.config.min_value, context.config.max_value
-            )
-
-        # ParaView scalar bar is always hidden - using custom HTML colorbar instead
-
-        # Update common sources to all render views
-
-        globe = sources["continents"]
-        repG = Show(globe, rview)
-        ColorBy(repG, None)
+        # Add annotation to the view
+        # - continents
+        globe = source.views["continents"]
+        repG = simple.Show(globe, self.view)
+        simple.ColorBy(repG, None)
         repG.SetRepresentationType("Wireframe")
         repG.RenderLinesAsTubes = 1
         repG.LineWidth = 1.0
         repG.AmbientColor = [0.67, 0.67, 0.67]
         repG.DiffuseColor = [0.67, 0.67, 0.67]
-
-        annot = sources["grid_lines"]
-        repAn = Show(annot, rview)
+        self.rep_globe = repG
+        # - gridlines
+        annot = source.views["grid_lines"]
+        repAn = simple.Show(annot, self.view)
         repAn.SetRepresentationType("Wireframe")
         repAn.AmbientColor = [0.67, 0.67, 0.67]
         repAn.DiffuseColor = [0.67, 0.67, 0.67]
         repAn.Opacity = 0.4
+        self.rep_grid = repAn
 
-        # Always hide ParaView scalar bar - using custom HTML colorbar
-        rep.SetScalarBarVisibility(rview, False)
-        rview.CameraParallelProjection = 1
+        # Reactive behavior
+        self.config.watch(
+            ["color_value_min", "color_value_max"],
+            self.color_range_str_to_float,
+        )
+        self.config.watch(
+            ["override_range", "color_range"], self.update_color_range, eager=True
+        )
+        self.config.watch(
+            ["preset", "invert", "use_log_scale"], self.update_color_preset, eager=True
+        )
 
-        Render(rview)
-        # ResetCamera(rview)
+        # GUI
+        self._build_ui()
 
-    def sync_color_config_to_state(self, index, context: ViewContext):
-        # Update state arrays directly without context manager to avoid recursive flush
-        self.state.varcolor[index] = context.config.colormap
-        self.state.varmin[index] = context.config.min_value
-        self.state.varmax[index] = context.config.max_value
-        self.state.uselogscale[index] = context.config.use_log_scale
-        self.state.override_range[index] = context.config.override_range
-        self.state.invert[index] = context.config.invert_colors
-        # Mark arrays as dirty to ensure UI updates
-        self.state.dirty("varcolor")
-        self.state.dirty("varmin")
-        self.state.dirty("varmax")
-        self.state.dirty("uselogscale")
-        self.state.dirty("override_range")
-        self.state.dirty("invert")
-
-    def generate_colorbar_image(self, index):
-        """Generate colorbar image for a variable at given index.
-
-        This uses the cached colorbar images based on the colormap name
-        and invert status.
-        """
-        if index >= len(self.state.variables):
+    def render(self):
+        if self.disable_render or not self.ctx.has(self.name):
             return
+        self.ctx[self.name].update()
 
-        var = self.state.variables[index]
-        context = self.registry.get_view(var)
-        if context is None:
-            return
+    def set_camera_modified(self, fn):
+        self._observer = self.camera.AddObserver("ModifiedEvent", fn)
 
-        # Get cached colorbar image based on colormap and invert status
+    @property
+    def camera(self):
+        return self.view.GetActiveCamera()
+
+    def reset_camera(self):
+        self.view.InteractionMode = "2D"
+        self.view.ResetActiveCameraToNegativeZ()
+        self.view.ResetCamera(True, 0.9)
+        self.ctx[self.name].update()
+
+    def update_color_preset(self, name, invert, log_scale):
+        self.config.preset = name
+        self.config.preset_img = get_cached_colorbar_image(
+            self.config.preset,
+            self.config.invert,
+        )
+        self.lut.ApplyPreset(self.config.preset, True)
+        if invert:
+            self.lut.InvertTransferFunction()
+        if log_scale:
+            self.lut.MapControlPointsToLogSpace()
+            self.lut.UseLogScale = 1
+        self.render()
+
+    def color_range_str_to_float(self, color_value_min, color_value_max):
         try:
-            image_data = get_cached_colorbar_image(
-                context.config.colormap, context.config.invert_colors
-            )
-            # Update state with the cached image
-            self.state.colorbar_images[index] = image_data
-            self.state.dirty("colorbar_images")
-        except Exception as e:
-            print(f"Error getting cached colorbar image for {var}: {e}")
+            min_value = float(color_value_min)
+            self.config.color_value_min_valid = not math.isnan(min_value)
+        except ValueError:
+            self.config.color_value_min_valid = False
 
-    def reset_camera(self, **kwargs):
-        if len(self.widgets) > 0 and len(self.state.variables) > 0:
-            var = self.state.variables[0]
-            context = self.registry.get_view(var)
-            if context and context.state.view_proxy:
-                context.state.view_proxy.ResetCamera(True, 0.9)
-        self.render_all_views()
+        try:
+            max_value = float(color_value_max)
+            self.config.color_value_max_valid = not math.isnan(max_value)
+        except ValueError:
+            self.config.color_value_max_valid = False
 
-    def render_all_views(self, **kwargs):
-        for widget in self.widgets:
-            widget.update()
+        if self.config.color_value_min_valid and self.config.color_value_max_valid:
+            self.config.color_range = [min_value, max_value]
 
-    def render_view_by_index(self, index):
-        self.widgets[index].update()
+    def update_color_range(self, *_):
+        if self.config.override_range:
+            skip_update = False
+            if math.isnan(self.config.color_range[0]):
+                skip_update = True
+                self.config.color_value_min_valid = False
 
-    @trigger("view_gc")
-    def delete_render_view(self, ref_name):
-        view_to_delete = None
-        view_id = self.state[f"{ref_name}Id"]
-        for view in self.to_delete:
-            if view.GetGlobalIDAsString() == view_id:
-                view_to_delete = view
-        if view_to_delete is not None:
-            self.to_delete = [v for v in self.to_delete if v != view_to_delete]
-            Delete(view_to_delete)
+            if math.isnan(self.config.color_range[1]):
+                skip_update = True
+                self.config.color_value_max_valid = False
 
-    def compute_average(self, var, vtkdata=None):
-        if vtkdata is None:
-            data = self.source.views["atmosphere_data"]
-            vtkdata = sm.Fetch(data)
-        vardata = vtkdata.GetCellData().GetArray(var)
+            if skip_update:
+                return
 
-        # Check if area variable exists
-        area_array = vtkdata.GetCellData().GetArray("area")
-        return calculate_weighted_average(vardata, area_array)
-
-    def compute_range(self, var, vtkdata=None):
-        if vtkdata is None:
-            data = self.source.views["atmosphere_data"]
-            vtkdata = sm.Fetch(data)
-        vardata = vtkdata.GetCellData().GetArray(var)
-        return vardata.GetRange()
-
-    def rebuild_after_close(self, cached_layout=None):
-        to_render = self.state.variables
-        rendered = self.registry.get_all_variables()
-        to_delete = set(rendered) - set(to_render)
-        # Move old variables so they their proxies can be deleted
-        self.to_delete.extend(
-            [self.registry.get_view(x).state.view_proxy for x in to_delete]
-        )
-
-        layout_map = cached_layout if cached_layout else {}
-
-        del self.state.views[:]
-        del self.state.layout[:]
-        del self.widgets[:]
-        sWidgets = []
-        layout = []
-        wdt = 4
-        hgt = 3
-
-        for index, var in enumerate(to_render):
-            # Check if we have saved position for this variable
-            if var in layout_map:
-                # Use saved position
-                pos = layout_map[var]
-                x = pos["x"]
-                y = pos["y"]
-                wdt = pos["w"]
-                hgt = pos["h"]
-            else:
-                # Default grid position (3 columns)
-                x = int(index % 3) * 4
-                y = int(index / 3) * 3
-                wdt = 4
-                hgt = 3
-
-            context: ViewContext = self.registry.get_view(var)
-            view = context.state.view_proxy
-            context.index = index
-            widget = pvWidgets.VtkRemoteView(
-                view,
-                interactive_ratio=1,
-                classes="pa-0 drag_ignore",
-                style="width: 100%; height: 100%;",
-                trame_server=self.server,
-            )
-            self.widgets.append(widget)
-            sWidgets.append(widget.ref_name)
-            # Use index as identifier to maintain compatibility with grid expectations
-            layout.append({"x": x, "y": y, "w": wdt, "h": hgt, "i": index})
-
-        for var in to_delete:
-            self.registry.remove_view(var)
-
-        self.state.views = sWidgets
-        self.state.layout = layout
-        self.state.dirty("views")
-        self.state.dirty("layout")
-
-    def rebuild_visualization_layout(self, cached_layout=None, update_pipeline=True):
-        self.widgets.clear()
-        state = self.state
-        source = self.source
-        long = state.cliplong
-        lat = state.cliplat
-        tstamp = state.tstamp
-        time = 0.0 if len(self.state.timesteps) == 0 else self.state.timesteps[tstamp]
-
-        if update_pipeline:
-            source.UpdateLev(self.state.midpoint, self.state.interface)
-            source.ApplyClipping(long, lat)
-            source.UpdateCenter(self.state.center)
-            source.UpdateProjection(self.state.projection)
-            source.UpdatePipeline(time)
-
-        to_render = self.state.variables
-        rendered = self.registry.get_all_variables()
-        to_delete = set(rendered) - set(to_render)
-        # Move old variables so they their proxies can be deleted
-        self.to_delete.extend(
-            [self.registry.get_view(x).state.view_proxy for x in to_delete]
-        )
-
-        # Get area variable to calculate weighted average
-        data = self.source.views["atmosphere_data"]
-        vtkdata = sm.Fetch(data)
-
-        # Use cached layout if provided, or fall back to saved layout in registry
-        layout_map = cached_layout if cached_layout else {}
-
-        # If no cached layout, check if we have saved layout in registry
-        if not layout_map and hasattr(self.registry, "_saved_layout"):
-            # Convert saved layout array to variable-name-based map
-            temp_map = {}
-            for item in self.registry._saved_layout:
-                if isinstance(item, dict) and "i" in item:
-                    idx = item["i"]
-                    if hasattr(state, "variables") and idx < len(state.variables):
-                        var_name = state.variables[idx]
-                        temp_map[var_name] = {
-                            "x": item.get("x", 0),
-                            "y": item.get("y", 0),
-                            "w": item.get("w", 4),
-                            "h": item.get("h", 3),
-                        }
-            layout_map = temp_map
-
-        del self.state.views[:]
-        del self.state.layout[:]
-        del self.widgets[:]
-        sWidgets = []
-        layout = []
-        wdt = 4
-        hgt = 3
-
-        view0 = None
-        for index, var in enumerate(to_render):
-            # Check if we have saved position for this variable
-            if var in layout_map:
-                # Use saved position
-                pos = layout_map[var]
-                x = pos["x"]
-                y = pos["y"]
-                wdt = pos["w"]
-                hgt = pos["h"]
-            else:
-                # Default grid position (3 columns)
-                x = int(index % 3) * 4
-                y = int(index / 3) * 3
-                wdt = 4
-                hgt = 3
-
-            varrange = self.compute_range(var, vtkdata=vtkdata)
-            varavg = self.compute_average(var, vtkdata=vtkdata)
-
-            view = None
-            context: ViewContext = self.registry.get_view(var)
-            if context is not None:
-                view = context.state.view_proxy
-                if view is None:
-                    view = CreateRenderView()
-                    view.OrientationAxesVisibility = 0
-                    view.UseColorPaletteForBackground = 0
-                    view.BackgroundColorMode = "Gradient"
-                    view.GetRenderWindow().SetOffScreenRendering(True)
-                    context.state.view_proxy = view
-                    # First time creating view for this context
-                    # Context already has its configuration from previous sessions
-                    # Just update range if not overridden (critical requirement)
-                    if not context.config.override_range:
-                        context.config.min_value = varrange[0]
-                        context.config.max_value = varrange[1]
-                    self.configure_new_view(var, context, self.source.views)
-                else:
-                    # Trust the ViewContext - it's already configured
-                    # Only update the color range if not overridden (critical requirement)
-                    if not context.config.override_range:
-                        context.config.min_value = varrange[0]
-                        context.config.max_value = varrange[1]
-
-                    # Only refresh the display, don't change configuration
-                    self.refresh_view_display(context)
-            else:
-                # Creating a completely new ViewContext
-                view = CreateRenderView()
-
-                # Use defaults for new variables
-                default_colormap = self.get_default_colormap()
-
-                config = ViewConfiguration(
-                    variable=var,
-                    colormap=default_colormap,
-                    use_log_scale=False,  # Default
-                    invert_colors=False,  # Default
-                    min_value=varrange[0],  # Always use current data range
-                    max_value=varrange[1],
-                    override_range=False,  # Default to auto-range
-                )
-                view_state = ViewState(
-                    view_proxy=view,
-                )
-                context = ViewContext(config, view_state, index)
-                view.UseColorPaletteForBackground = 0
-                view.BackgroundColorMode = "Gradient"
-                self.registry.register_view(var, context)
-                self.configure_new_view(var, context, self.source.views)
-
-            # Apply manual color range if override is enabled
-            if context.config.override_range:
-                coltrfunc = GetColorTransferFunction(var)
-                coltrfunc.RescaleTransferFunction(
-                    context.config.min_value, context.config.max_value
-                )
-
-            context.index = index
-            # Set the computed average directly in trame state
-            self.state.varaverage[index] = varavg
-            self.state.dirty("varaverage")
-            self.sync_color_config_to_state(index, context)
-            self.generate_colorbar_image(index)
-
-            if index == 0:
-                view0 = view
-            else:
-                AddCameraLink(view, view0, f"viewlink{index}")
-            widget = pvWidgets.VtkRemoteView(
-                view,
-                interactive_ratio=1,
-                classes="pa-0 drag_ignore",
-                style="width: 100%; height: 100%;",
-                trame_server=self.server,
-            )
-            self.widgets.append(widget)
-            sWidgets.append(widget.ref_name)
-            # Use index as identifier to maintain compatibility with grid expectations
-            layout.append({"x": x, "y": y, "w": wdt, "h": hgt, "i": index})
-
-        for var in to_delete:
-            self.registry.remove_view(var)
-
-        self.state.views = sWidgets
-        self.state.layout = layout
-        self.state.dirty("views")
-        self.state.dirty("layout")
-
-    def update_colormap(self, index, value):
-        """Update the colormap for a variable."""
-        var = self.state.variables[index]
-        coltrfunc = GetColorTransferFunction(var)
-        context: ViewContext = self.registry.get_view(var)
-
-        context.config.colormap = value
-        # Apply the preset
-        coltrfunc.ApplyPreset(context.config.colormap, True)
-        # Reapply inversion if it was enabled
-        if context.config.invert_colors:
-            coltrfunc.InvertTransferFunction()
-
-        # Generate new colorbar image with updated colormap
-        self.generate_colorbar_image(index)
-        # Sync all color configuration changes back to state
-        self.sync_color_config_to_state(index, context)
-        self.render_view_by_index(index)
-
-    def update_log_scale(self, index, value):
-        """Update the log scale setting for a variable."""
-        var = self.state.variables[index]
-        coltrfunc = GetColorTransferFunction(var)
-        context: ViewContext = self.registry.get_view(var)
-
-        context.config.use_log_scale = value
-        if context.config.use_log_scale:
-            coltrfunc.MapControlPointsToLogSpace()
-            coltrfunc.UseLogScale = 1
+            self.lut.RescaleTransferFunction(*self.config.color_range)
         else:
-            coltrfunc.MapControlPointsToLinearSpace()
-            coltrfunc.UseLogScale = 0
-        # Note: We don't regenerate the colorbar image here because the color gradient
-        # itself doesn't change with log scale - only the data mapping changes.
-        # The colorbar always shows a linear color progression.
+            self.representation.RescaleTransferFunctionToDataRange(False, True)
+            data_array = (
+                self.source.views["atmosphere_data"]
+                .GetCellDataInformation()
+                .GetArray(self.variable_name)
+            )
+            if data_array:
+                data_range = data_array.GetRange()
+                self.config.color_range = data_range
+                self.config.color_value_min = str(data_range[0])
+                self.config.color_value_max = str(data_range[1])
+                self.config.color_value_min_valid = True
+                self.config.color_value_max_valid = True
+                self.lut.RescaleTransferFunction(*data_range)
+        self.render()
 
-        # Sync all color configuration changes back to state
-        self.sync_color_config_to_state(index, context)
-        self.render_view_by_index(index)
+    def _build_ui(self):
+        with DivLayout(
+            self.server, template_name=self.name, connect_parent=False, classes="h-100"
+        ) as self.ui:
+            self.ui.root.classes = "h-100"
+            with v3.VCard(
+                variant="tonal",
+                style=(
+                    "active_layout !== 'auto_layout' ? `height: calc(100% - ${top_padding}px;` : 'overflow-hidden'",
+                ),
+                tile=("active_layout !== 'auto_layout'",),
+            ):
+                with v3.VRow(
+                    dense=True,
+                    classes="ma-0 pa-0 bg-black opacity-90 d-flex align-center",
+                ):
+                    view.create_size_menu(self.name, self.config)
+                    with html.Div(
+                        self.variable_name,
+                        classes="text-subtitle-2 pr-2",
+                        style="user-select: none;",
+                    ):
+                        with v3.VMenu(activator="parent"):
+                            with v3.VList(density="compact", style="max-height: 40vh;"):
+                                with self.config.provide_as("config"):
+                                    v3.VListItem(
+                                        subtitle=("name",),
+                                        v_for="name, idx in config.swap_group",
+                                        key="name",
+                                        click=(
+                                            self.ctrl.swap_variables,
+                                            "[config.variable, name]",
+                                        ),
+                                    )
 
-    def update_invert_colors(self, index, value):
-        """Update the color inversion setting for a variable."""
-        var = self.state.variables[index]
-        coltrfunc = GetColorTransferFunction(var)
-        context: ViewContext = self.registry.get_view(var)
+                    v3.VIcon(
+                        "mdi-lock-outline",
+                        size="x-small",
+                        v_show=("lock_views", False),
+                        style="transform: scale(0.75);",
+                    )
 
-        context.config.invert_colors = value
-        coltrfunc.InvertTransferFunction()
-        # Generate new colorbar image when colors are inverted
-        self.generate_colorbar_image(index)
+                    v3.VSpacer()
+                    html.Div(
+                        "t = {{ time_idx }}",
+                        classes="text-caption px-1",
+                        v_if="timestamps.length > 1",
+                    )
+                    if self.variable_type == "m":
+                        html.Div(
+                            "[k = {{ midpoint_idx }}]",
+                            classes="text-caption px-1",
+                            v_if="midpoints.length > 1",
+                        )
+                    if self.variable_type == "i":
+                        html.Div(
+                            "[k = {{ interface_idx }}]",
+                            classes="text-caption px-1",
+                            v_if="interfaces.length > 1",
+                        )
+                    v3.VSpacer()
+                    html.Div(
+                        "avg = {{"
+                        f"fields_avgs['{self.variable_name}']?.toExponential(2) || 'N/A'"
+                        "}}",
+                        classes="text-caption px-1",
+                    )
 
-        # Sync all color configuration changes back to state
-        self.sync_color_config_to_state(index, context)
-        self.render_view_by_index(index)
+                with html.Div(
+                    style=(
+                        """
+                        {
+                            aspectRatio: active_layout === 'auto_layout' ? aspect_ratio : null,
+                            height: active_layout !== 'auto_layout' ? 'calc(100% - 2.4rem)' : null,
+                            pointerEvents: lock_views ? 'none': null,
+                        }
+                        """,
+                    ),
+                ):
+                    pvw.VtkRemoteView(
+                        self.view, interactive_ratio=1, ctx_name=self.name
+                    )
 
-    def update_scalar_bars(self, event=None):
-        # Always hide ParaView scalar bars - using custom HTML colorbar
-        # The HTML colorbar is always visible, no toggle needed
-        for _, context in self.registry.items():
-            view = context.state.view_proxy
-            context.state.data_representation.SetScalarBarVisibility(view, False)
-        self.render_all_views()
+                view.create_bottom_bar(self.config, self.update_color_preset)
 
-    def set_manual_color_range(self, index, min, max):
-        var = self.state.variables[index]
-        context: ViewContext = self.registry.get_view(var)
-        context.config.override_range = True
-        context.config.min_value = float(min)
-        context.config.max_value = float(max)
-        # Sync all changes back to state
-        self.sync_color_config_to_state(index, context)
-        # Update color transfer function
-        coltrfunc = GetColorTransferFunction(var)
-        coltrfunc.RescaleTransferFunction(float(min), float(max))
-        # Note: colorbar image doesn't change with range, only data mapping changes
-        self.render_view_by_index(index)
 
-    def revert_to_auto_color_range(self, index):
-        var = self.state.variables[index]
-        # Get colors from main file
-        varrange = self.compute_range(var)
-        context: ViewContext = self.registry.get_view(var)
-        context.config.override_range = False
-        context.config.min_value = varrange[0]
-        context.config.max_value = varrange[1]
-        # Sync all changes back to state
-        self.sync_color_config_to_state(index, context)
-        # Rescale transfer function to data range
-        context.state.data_representation.RescaleTransferFunctionToDataRange(
-            False, True
-        )
-        # Note: colorbar image doesn't change with range, only data mapping changes
-        self.render_all_views()
+class ViewManager(TrameComponent):
+    def __init__(self, server, source):
+        super().__init__(server)
+        self.source = source
+        self._var2view = {}
+        self._camera_sync_in_progress = False
+        self._last_vars = {}
+        self._active_configs = {}
 
-    def zoom_in(self, index=0):
-        var = self.state.variables[index]
-        context: ViewContext = self.registry.get_view(var)
-        rview = context.state.view_proxy
-        rview.CameraParallelScale *= 0.95
-        self.render_all_views()
+        pvw.initialize(self.server)
 
-    def zoom_out(self, index=0):
-        var = self.state.variables[index]
-        context: ViewContext = self.registry.get_view(var)
-        rview = context.state.view_proxy
-        rview.CameraParallelScale *= 1.05
-        self.render_all_views()
+        self.state.luts_normal = [
+            {"name": k, "url": v["normal"], "safe": k in COLOR_BLIND_SAFE}
+            for k, v in COLORBAR_CACHE.items()
+        ]
+        self.state.luts_inverted = [
+            {"name": k, "url": v["inverted"], "safe": k in COLOR_BLIND_SAFE}
+            for k, v in COLORBAR_CACHE.items()
+        ]
 
-    def pan_camera(self, dir, factor, index=0):
-        var = self.state.variables[index]
-        context: ViewContext = self.registry.get_view(var)
-        rview = context.state.view_proxy
-        extents = self.source.moveextents
-        move = (
-            (extents[1] - extents[0]) * 0.05,
-            (extents[3] - extents[2]) * 0.05,
-            (extents[5] - extents[4]) * 0.05,
-        )
+        # Sort lists
+        self.state.luts_normal.sort(key=lut_name)
+        self.state.luts_inverted.sort(key=lut_name)
 
-        pos = rview.CameraPosition
-        foc = rview.CameraFocalPoint
-        pos[dir] += move[dir] if factor > 0 else -move[dir]
-        foc[dir] += move[dir] if factor > 0 else -move[dir]
-        rview.CameraPosition = pos
-        rview.CameraFocalPoint = foc
-        self.render_all_views()
+    def refresh_ui(self, **_):
+        for view in self._var2view.values():
+            view._build_ui()
+
+    def reset_camera(self):
+        views = list(self._var2view.values())
+        for view in views:
+            view.disable_render = True
+
+        for view in views:
+            view.reset_camera()
+
+        for view in views:
+            view.disable_render = False
+
+    def render(self):
+        for view in list(self._var2view.values()):
+            view.render()
+
+    def update_color_range(self):
+        for view in list(self._var2view.values()):
+            view.update_color_range()
+
+    def get_view(self, variable_name, variable_type):
+        view = self._var2view.get(variable_name)
+        if view is None:
+            view = self._var2view.setdefault(
+                variable_name,
+                VariableView(self.server, self.source, variable_name, variable_type),
+            )
+            view.set_camera_modified(self.sync_camera)
+
+        return view
+
+    def sync_camera(self, camera, *_):
+        if self._camera_sync_in_progress:
+            return
+        self._camera_sync_in_progress = True
+
+        for var_view in self._var2view.values():
+            cam = var_view.camera
+            if cam is camera:
+                continue
+            cam.DeepCopy(camera)
+            var_view.render()
+
+        self._camera_sync_in_progress = False
+
+    @controller.set("swap_variables")
+    def swap_variable(self, variable_a, variable_b):
+        config_a = self._active_configs[variable_a]
+        config_b = self._active_configs[variable_b]
+        config_a.order, config_b.order = config_b.order, config_a.order
+        config_a.size, config_b.size = config_b.size, config_a.size
+        config_a.offset, config_b.offset = config_b.offset, config_a.offset
+        config_a.break_row, config_b.break_row = config_b.break_row, config_a.break_row
+
+    def apply_size(self, n_cols):
+        if not self._last_vars:
+            return
+
+        if n_cols == 0:
+            # Auto based on group size
+            if self.state.layout_grouped:
+                for var_type in "smi":
+                    var_names = self._last_vars[var_type]
+                    total_size = len(var_names)
+
+                    if total_size == 0:
+                        continue
+
+                    size = auto_size_to_col(total_size)
+                    for name in var_names:
+                        config = self.get_view(name, var_type).config
+                        config.size = size
+
+            else:
+                size = auto_size_to_col(len(self._active_configs))
+                for config in self._active_configs.values():
+                    config.size = size
+        else:
+            # uniform size
+            for config in self._active_configs.values():
+                config.size = COL_SIZE_LOOKUP[n_cols]
+
+    def build_auto_layout(self, variables=None):
+        if variables is None:
+            variables = self._last_vars
+
+        self._last_vars = variables
+
+        # Create UI based on variables
+        self.state.swap_groups = {}
+        with DivLayout(self.server, template_name="auto_layout") as self.ui:
+            if self.state.layout_grouped:
+                with v3.VCol(classes="pa-1"):
+                    for var_type in "smi":
+                        var_names = variables[var_type]
+                        total_size = len(var_names)
+
+                        if total_size == 0:
+                            continue
+
+                        with v3.VAlert(
+                            border="start",
+                            classes="pr-1 py-1 pl-3 mb-1",
+                            variant="flat",
+                            border_color=TYPE_COLOR[var_type],
+                        ):
+                            with v3.VRow(dense=True):
+                                for name in var_names:
+                                    view = self.get_view(name, var_type)
+                                    view.config.swap_group = sorted(
+                                        [n for n in var_names if n != name]
+                                    )
+                                    with view.config.provide_as("config"):
+                                        v3.VCol(
+                                            v_if="config.break_row",
+                                            cols=12,
+                                            classes="pa-0",
+                                            style=("`order: ${config.order};`",),
+                                        )
+                                        # For flow handling
+                                        with v3.Template(v_if="!config.size"):
+                                            v3.VCol(
+                                                v_for="i in config.offset",
+                                                key="i",
+                                                style=("{ order: config.order }",),
+                                            )
+                                        with v3.VCol(
+                                            offset=("config.offset * config.size",),
+                                            cols=("config.size",),
+                                            style=("`order: ${config.order};`",),
+                                        ):
+                                            client.ServerTemplate(name=view.name)
+            else:
+                all_names = [name for names in variables.values() for name in names]
+                with v3.VRow(dense=True, classes="pa-2"):
+                    for var_type in "smi":
+                        var_names = variables[var_type]
+                        for name in var_names:
+                            view = self.get_view(name, var_type)
+                            view.config.swap_group = sorted(
+                                [n for n in all_names if n != name]
+                            )
+                            with view.config.provide_as("config"):
+                                v3.VCol(
+                                    v_if="config.break_row",
+                                    cols=12,
+                                    classes="pa-0",
+                                    style=("`order: ${config.order};`",),
+                                )
+
+                                # For flow handling
+                                with v3.Template(v_if="!config.size"):
+                                    v3.VCol(
+                                        v_for="i in config.offset",
+                                        key="i",
+                                        style=("{ order: config.order }",),
+                                    )
+                                with v3.VCol(
+                                    offset=(
+                                        "config.size ? config.offset * config.size : 0",
+                                    ),
+                                    cols=("config.size",),
+                                    style=("`order: ${config.order};`",),
+                                ):
+                                    client.ServerTemplate(name=view.name)
+
+        # Assign any missing order
+        self._active_configs = {}
+        existed_order = set()
+        order_max = 0
+        orders_to_update = []
+        for var_type in "smi":
+            var_names = variables[var_type]
+            for name in var_names:
+                config = self.get_view(name, var_type).config
+                self._active_configs[name] = config
+                if config.order:
+                    order_max = max(order_max, config.order)
+                    assert config.order not in existed_order, "Order already assigned"
+                    existed_order.add(config.order)
+                else:
+                    orders_to_update.append(config)
+
+        next_order = order_max + 1
+        for config in orders_to_update:
+            config.order = next_order
+            next_order += 1
