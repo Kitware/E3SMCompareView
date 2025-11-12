@@ -61,7 +61,7 @@ packages = [
 
 [project.scripts]
 quickview-vue2 = "e3sm_quickview.app:main"
-quickview = "e3sm_quickview.app2:main"
+quickview = "e3sm_quickview.app:main"
 
 [tool.ruff.lint.per-file-ignores]
 # Ignore star import issues in ParaView plugins
