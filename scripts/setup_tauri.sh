@@ -10,17 +10,21 @@ python -m PyInstaller --clean --noconfirm \
         --name server --hidden-import pkgutil \
         --collect-all trame \
         --collect-all trame_client \
-        --collect-all trame_components \
-        --collect-all trame_grid_layout \
+        --collect-all trame_dataclass \
         --collect-all trame_vtk \
         --collect-all trame_vuetify \
         --collect-all trame_tauri \
         --collect-all pyproj \
         --collect-all netCDF4 \
         --collect-all paraview \
-        --collect-all quickview \
+        --collect-all e3sm_quickview \
         --hidden-import pkgutil \
         --add-binary="$(which pvpython):."  \
-        quickview/app.py
+        src/e3sm_quickview/app2.py
 
-python -m trame.tools.www --output ./src-tauri/www --client-type vue2
+# Generate trame www + quickview
+python -m trame.tools.www --output ./src-tauri/www
+python -m trame.tools.www --output ./src-tauri/www e3sm_quickview.module
+
+# Precompile install to speedup start (maybe?)
+./src-tauri/server/server --timeout 1 --server
