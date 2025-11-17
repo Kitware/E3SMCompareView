@@ -4,7 +4,7 @@ from vtkmodules.vtkCommonCore import vtkPoints, vtkDataArraySelection
 from vtkmodules.vtkCommonDataModel import vtkUnstructuredGrid, vtkCellArray
 from vtkmodules.util import vtkConstants, numpy_support
 from vtkmodules.util.vtkAlgorithm import VTKPythonAlgorithmBase
-from paraview import print_error
+from paraview import print_error, print_warning
 
 try:
     import netCDF4
@@ -34,36 +34,80 @@ class EAMConstants:
 
 from enum import Enum  # noqa: E402
 
-
-class VarType(Enum):
-    _1D = 1
-    _2D = 2
-    _3Dm = 3
-    _3Di = 4
-
+class DimMeta:
+    """Simple class to store dimension metadata."""
+    def __init__(self, name, size, data=None):
+        self.name = name
+        self.size = size
+        self.long_name = None
+        self.units = None
+        self.data = data  # Store the actual dimension coordinate values
+    
+    def __getitem__(self, key):
+        """Dict-like access to attributes."""
+        return getattr(self, key, None)
+    
+    def __setitem__(self, key, value):
+        """Dict-like setting of attributes."""
+        setattr(self, key, value)
+    
+    def update_from_variable(self, var_info):
+        """Update metadata from netCDF variable info - only long_name and units."""
+        try:
+            self.long_name = var_info.getncattr('long_name')
+        except AttributeError:
+            pass
+        
+        try:
+            self.units = var_info.getncattr('units')
+        except AttributeError:
+            pass
+    
+    def __repr__(self):
+        return f"DimMeta(name='{self.name}', size={self.size}, long_name='{self.long_name}')"
 
 class VarMeta:
+    """Simple class to store variable metadata."""
     def __init__(self, name, info, horizontal_dim=None):
         self.name = name
-        self.type = None
-        self.transpose = False
+        self.dimensions = info.dimensions  # Store dimensions for slicing
         self.fillval = np.nan
-
-        dims = info.dimensions
-
-        if len(dims) == 1:
-            self.type = VarType._1D
-        elif len(dims) == 2:
-            self.type = VarType._2D
-        elif len(dims) == 3:
-            if "lev" in dims:
-                self.type = VarType._3Dm
-            elif "ilev" in dims:
-                self.type = VarType._3Di
-
-            # Use dynamic horizontal dimension
-            if horizontal_dim and len(dims) > 1 and horizontal_dim in dims[1]:
-                self.transpose = True
+        self.long_name = None
+        
+        # Extract metadata from info
+        self._extract_metadata(info)
+    
+    def _extract_metadata(self, info):
+        """Helper to extract metadata attributes from netCDF variable."""
+        # Try to get fill value from either _FillValue or missing_value
+        for fillattr in ['_FillValue', 'missing_value']:
+            value = self._get_attr(info, fillattr)
+            if value is not None:
+                self.fillval = value
+                break
+        
+        # Get long_name if available
+        long_name = self._get_attr(info, 'long_name')
+        if long_name is not None:
+            self.long_name = long_name
+    
+    def _get_attr(self, info, attr_name):
+        """Safely get an attribute from netCDF variable info."""
+        try:
+            return info.getncattr(attr_name)
+        except (AttributeError, KeyError):
+            return None
+    
+    def __getitem__(self, key):
+        """Dict-like access to attributes."""
+        return getattr(self, key, None)
+    
+    def __setitem__(self, key, value):
+        """Dict-like setting of attributes."""
+        setattr(self, key, value)
+    
+    def __repr__(self):
+        return f"VarMeta(name='{self.name}', dimensions={self.dimensions})"
 
 
 def compare(data, arrays, dim):
@@ -168,20 +212,14 @@ import traceback  # noqa: E402
 )
 @smproperty.xml(
     """
-                <IntVectorProperty name="Middle Layer"
-                    command="SetMiddleLayer"
-                    number_of_elements="1"
-                    default_values="0">
-                </IntVectorProperty>
-                """
-)
-@smproperty.xml(
-    """
-                <IntVectorProperty name="Interface Layer"
-                    command="SetInterfaceLayer"
-                    number_of_elements="1"
-                    default_values="0">
-                </IntVectorProperty>
+                <StringVectorProperty command="SetSlicing"
+                      name="Slicing"
+                      label="Slicing"
+                      number_of_elements="1"
+                      animateable="0"
+                      default_values="">
+                    <Documentation>JSON representing dimension slices (e.g. {"lev": 0, "ilev": 1})</Documentation>
+                </StringVectorProperty>
                 """
 )
 class EAMSliceSource(VTKPythonAlgorithmBase):
@@ -200,33 +238,19 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
 
         # Variables for dimension sliders
         self._time = 0
-        self._lev = 0
-        self._ilev = 0
-        # Arrays to store field names in netCDF file
-        self._info_vars = []  # 1D info variables
-        self._surface_vars = []  # 2D surface variables
-        self._interface_vars = []  # 3D interface layer variables
-        self._midpoint_vars = []  # 3D midpoint layer variables
+        # Dictionaries to store metadata objects
+        self._variables = {}  # Will store VarMeta objects by name
+        self._dimensions = {}  # Will store DimMeta objects by name
         self._timeSteps = []
+        # Dictionary to store dimension slices
+        self._slices = {}
+        
 
         # vtkDataArraySelection to allow users choice for fields
         # to fetch from the netCDF data set
-        self._info_selection = vtkDataArraySelection()
-        self._surface_selection = vtkDataArraySelection()
-        self._interface_selection = vtkDataArraySelection()
-        self._midpoint_selection = vtkDataArraySelection()
-        # Cache for non temporal variables
-        # Store { names : data }
-        self._info_vars_cache = {}
+        self._variable_selection = vtkDataArraySelection()
         # Add observers for the selection arrays
-        self._info_selection.AddObserver("ModifiedEvent", createModifiedCallback(self))
-        self._surface_selection.AddObserver(
-            "ModifiedEvent", createModifiedCallback(self)
-        )
-        self._interface_selection.AddObserver(
-            "ModifiedEvent", createModifiedCallback(self)
-        )
-        self._midpoint_selection.AddObserver(
+        self._variable_selection.AddObserver(
             "ModifiedEvent", createModifiedCallback(self)
         )
         # Flag for area var to calculate averages
@@ -246,12 +270,12 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
         self._cached_ncells2D = None
 
         # Special variable caching
-        self._cached_lev = None
-        self._cached_ilev = None
+        #self._cached_lev = None
+        #self._cached_ilev = None
         self._cached_area = None
         
         # Dynamic dimension detection
-        self._horizontal_dim = None  # From connectivity file
+        self._horizontal_dim = None
         self._data_horizontal_dim = None  # Matched in data file
 
     def __del__(self):
@@ -302,16 +326,12 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
 
     # Method to clear all the variable names
     def _clear(self):
-        self._info_vars.clear()
-        self._surface_vars.clear()
-        self._interface_vars.clear()
-        self._midpoint_vars.clear()
+        self._variables.clear()
+
         # Clear special variable cache when metadata changes
-        self._cached_lev = None
-        self._cached_ilev = None
         self._cached_area = None
+
         # Clear dimension detection
-        self._horizontal_dim = None
         self._data_horizontal_dim = None
 
     def _identify_horizontal_dimension(self, meshdata, vardata):
@@ -344,6 +364,11 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
         self._cached_offsets = None
         self._cached_ncells2D = None
 
+    '''
+    Disable the derivation of lev/ilev for the new approach -- the new approach
+    relies on the identified dimensions from the data file and connectivity files.
+    We could reintroduce this later if required.
+
     def _get_cached_lev(self, vardata):
         """Get cached lev array or compute and cache it."""
         if self._cached_lev is None:
@@ -359,6 +384,7 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
                 vardata, EAMConstants.ILEV, EAMConstants.HYAI, EAMConstants.HYBI
             )
         return self._cached_ilev
+    '''
 
     def _get_cached_area(self, vardata):
         """Get cached area array or load and cache it."""
@@ -371,27 +397,32 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
             self._cached_area[mask] = np.nan
         return self._cached_area
 
-    def _load_2d_variable(self, vardata, varmeta, timeInd):
-        """Load 2D variable data with optimized operations."""
-        # Get data without unnecessary copy
-        data = vardata[varmeta.name][:].data[timeInd].flatten()
-        data = np.where(data == varmeta.fillval, np.nan, data)
-        return data
-
-    def _load_3d_slice(self, vardata, varmeta, timeInd, start_idx, end_idx):
-        """Load a slice of 3D variable data with optimized operations."""
-        # Load full 3D data for time step
-        if not varmeta.transpose:
-            data = vardata[varmeta.name][:].data[timeInd].flatten()[start_idx:end_idx]
-        else:
-            data = (
-                vardata[varmeta.name][:]
-                .data[timeInd]
-                .transpose()
-                .flatten()[start_idx:end_idx]
-            )
-        data = np.where(data == varmeta.fillval, np.nan, data)
-        return data
+    def _load_variable(self, vardata, varmeta, timeInd):
+        """Load variable data with dimension-based slicing."""
+        try:
+            # Build slice tuple based on variable's dimensions and user-selected slices
+            slice_tuple = []
+            for dim in varmeta.dimensions:
+                if dim == self._data_horizontal_dim:
+                    continue
+                elif dim == "time":
+                    # Use timeInd for time dimension
+                    slice_tuple.append(timeInd)
+                elif hasattr(self, '_slices') and dim in self._slices:
+                    # Use user-specified slice for this dimension
+                    slice_tuple.append(self._slices[dim])
+                else:
+                    # Use all data for unspecified dimensions
+                    slice_tuple.append(slice(None))
+            
+            # Get data with proper slicing
+            data = vardata[varmeta.name][tuple(slice_tuple)].data.flatten()
+            data = np.where(data == varmeta.fillval, np.nan, data)
+            return data
+        except Exception as e:
+            print_error(f"Error loading variable {varmeta.name}: {e}")
+            # Return empty array on error
+            return np.array([])
 
     def _get_enabled_arrays(self, var_list, selection_obj):
         """Get list of enabled variable names from selection object."""
@@ -473,60 +504,59 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
             return
         
         # Clear existing selection arrays BEFORE adding new ones
-        self._surface_selection.RemoveAllArrays()
-        self._midpoint_selection.RemoveAllArrays()
-        self._interface_selection.RemoveAllArrays()
+        self._variable_selection.RemoveAllArrays()
         
-        # Define dimension sets dynamically based on detected dimension
-        dims1 = set([self._data_horizontal_dim])
-        dims2 = set(['time', self._data_horizontal_dim])
-        dims3m = set(['time', 'lev', self._data_horizontal_dim])
-        dims3i = set(['time', 'ilev', self._data_horizontal_dim])
-
+        # Collect all unique dimensions that need slicing
+        all_dimensions = set()
+        
+        # Store dimension metadata
+        self._dimensions.clear()
+        for dim_name, dim_obj in vardata.dimensions.items():
+            # Create DimMeta object
+            dim_meta = DimMeta(dim_name, dim_obj.size)
+            
+            # Try to load dimension coordinate variable if it exists
+            if dim_name in vardata.variables:
+                dim_var = vardata.variables[dim_name]
+                # Load dimension data
+                try:
+                    dim_meta.data = vardata[dim_name][:].data
+                except:
+                    pass
+                # Update metadata from variable attributes
+                dim_meta.update_from_variable(dim_var)
+            
+            self._dimensions[dim_name] = dim_meta
+        
         for name, info in vardata.variables.items():
             dims = set(info.dimensions)
-            if not (dims == dims1 or dims == dims2 or dims == dims3m or dims == dims3i):
+            if not self._data_horizontal_dim in dims:
                 continue
             varmeta = VarMeta(name, info, self._data_horizontal_dim)
-            if varmeta.type == VarType._1D:
-                self._info_vars.append(varmeta)
-                if "area" in name:
+            if len(dims) == 1 and "area" in name:
                     self._areavar = varmeta
-            elif varmeta.type == VarType._2D:
-                self._surface_vars.append(varmeta)
-                self._surface_selection.AddArray(name)
-            elif varmeta.type == VarType._3Dm:
-                self._midpoint_vars.append(varmeta)
-                self._midpoint_selection.AddArray(name)
-            elif varmeta.type == VarType._3Di:
-                self._interface_vars.append(varmeta)
-                self._interface_selection.AddArray(name)
-            try:
-                fillval = info.getncattr("_FillValue")
-                varmeta.fillval = fillval
-            except Exception:
-                try:
-                    fillval = info.getncattr("missing_value")
-                    varmeta.fillval = fillval
-                except Exception:
-                    pass
-        self._surface_selection.DisableAllArrays()
-        self._interface_selection.DisableAllArrays()
-        self._midpoint_selection.DisableAllArrays()
+            if len(dims) > 1:
+                all_dimensions.update(dims)
+            self._variables[name] = varmeta  # Store by name as key
+            self._variable_selection.AddArray(name)
+        
+        # Initialize slices for all dimensions at once
+        for dim in all_dimensions:
+            if dim not in self._slices:  # Only set if not already set
+                self._slices[dim] = 0
+        self._variable_selection.DisableAllArrays()
 
         # Clear old timestamps before adding new ones
         self._timeSteps.clear()
-        timesteps = vardata["time"][:].data.flatten()
-        self._timeSteps.extend(timesteps)
+        if "time" in vardata.variables:
+            timesteps = vardata["time"][:].data.flatten()
+            self._timeSteps.extend(timesteps)
 
     def SetDataFileName(self, fname):
         if fname is not None and fname != "None":
             if fname != self._DataFileName:
                 self._DataFileName = fname
                 self._dirty = True
-                self._surface_update = True
-                self._midpoint_update = True
-                self._interface_update = True
                 self._clear()
                 # Close old dataset if filename changed
                 if self._cached_var_filename != fname and self._var_dataset is not None:
@@ -542,9 +572,6 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
         if fname != self._ConnFileName:
             self._ConnFileName = fname
             self._dirty = True
-            self._surface_update = True
-            self._midpoint_update = True
-            self._interface_update = True
             self._clear()  # Clear dimension cache
             # Close old dataset if filename changed
             if self._cached_mesh_filename != fname and self._mesh_dataset is not None:
@@ -559,22 +586,69 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
                 self._populate_variable_metadata()
             self.Modified()
 
-    def SetMiddleLayer(self, lev):
-        if self._lev != lev:
-            self._lev = lev
-            self._midpoint_update = True
-            self.Modified()
-
-    def SetInterfaceLayer(self, ilev):
-        if self._ilev != ilev:
-            self._ilev = ilev
-            self._interface_update = True
-            self.Modified()
+    def SetSlicing(self, slice_str):
+        # Parse JSON string containing dimension slices and update self._slices
+        # Initialize _slices if not already done
+        if not hasattr(self, '_slices'):
+            self._slices = {}
+        
+        # Initialize dimensions if not already done
+        if not hasattr(self, '_dimensions'):
+            self._dimensions = {}
+            
+        if slice_str and slice_str.strip():  # Check for non-empty string
+            try:
+                import json
+                slice_dict = json.loads(slice_str)
+                
+                # Validate and update slices for provided dimensions
+                invalid_slices = []
+                for dim, slice_val in slice_dict.items():
+                    # Check if dimension exists
+                    if dim in self._dimensions:
+                        dim_meta = self._dimensions[dim]
+                        dim_size = dim_meta.size
+                        # Validate slice index
+                        if isinstance(slice_val, int):
+                            if slice_val < 0 or slice_val >= dim_size:
+                                # Include dimension long name if available
+                                dim_display = f"{dim}"
+                                if dim_meta.long_name:
+                                    dim_display += f" ({dim_meta.long_name})"
+                                invalid_slices.append(
+                                    f"{dim_display}={slice_val} (valid range: 0-{dim_size-1})"
+                                )
+                            else:
+                                self._slices[dim] = slice_val
+                        else:
+                            print_error(f"Slice value for '{dim}' must be an integer, got {type(slice_val).__name__}")
+                    else:
+                        # Store the slice anyway for dimensions we haven't seen yet
+                        # (might be populated later)
+                        self._slices[dim] = slice_val
+                        if self._dimensions:  # Only warn if we have dimension info
+                            print_warning(f"Dimension '{dim}' not found in data file")
+                
+                if invalid_slices:
+                    print_error(f"Invalid slice indices: {', '.join(invalid_slices)}")
+                else:
+                    self.Modified()
+                    
+            except (json.JSONDecodeError, ValueError) as e:
+                print_error(f"Invalid JSON for slicing: {e}")
+            except Exception as e:
+                print_error(f"Error setting slices: {e}")
 
     def SetCalculateAverages(self, calcavg):
         if self._avg != calcavg:
             self._avg = calcavg
             self.Modified()
+
+    def GetVariables(self):
+        return self._variables
+    
+    def GetDimensions(self):
+        return self._dimensions
 
     @smproperty.doublevector(
         name="TimestepValues", information_only="1", si_class="vtkSITimeStepsProperty"
@@ -587,17 +661,9 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
     # load. To expose that in ParaView, simply use the
     # smproperty.dataarrayselection().
     # This method **must** return a `vtkDataArraySelection` instance.
-    @smproperty.dataarrayselection(name="Surface Variables")
+    @smproperty.dataarrayselection(name="Variables")
     def GetSurfaceVariables(self):
-        return self._surface_selection
-
-    @smproperty.dataarrayselection(name="Midpoint Variables")
-    def GetMidpointVariables(self):
-        return self._midpoint_selection
-
-    @smproperty.dataarrayselection(name="Interface Variables")
-    def GetInterfaceVariables(self):
-        return self._interface_selection
+        return self._variable_selection
 
     def RequestInformation(self, request, inInfo, outInfo):
         executive = self.GetExecutive()
@@ -696,81 +762,17 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
         for i in range(last_num_arrays):
             to_remove.add(output_mesh.CellData.GetArrayName(i))
 
-        for varmeta in self._surface_vars:
-            if self._surface_selection.ArrayIsEnabled(varmeta.name):
-                if output_mesh.CellData.HasArray(varmeta.name):
-                    to_remove.remove(varmeta.name)
+        for name, varmeta in self._variables.items():
+            if self._variable_selection.ArrayIsEnabled(name):
+                if output_mesh.CellData.HasArray(name):
+                    to_remove.remove(name)
                 if (
-                    not output_mesh.CellData.HasArray(varmeta.name)
+                    not output_mesh.CellData.HasArray(name)
                     or self._surface_update
                 ):
-                    data = self._load_2d_variable(vardata, varmeta, timeInd)
-                    output_mesh.CellData.append(data, varmeta.name)
-        self._surface_update = False
-
-        try:
-            lev_field_name = "lev"
-            has_lev_field = output_mesh.FieldData.HasArray(lev_field_name)
-            lev = self._get_cached_lev(vardata)
-            if lev is not None:
-                if not has_lev_field:
-                    output_mesh.FieldData.append(lev, lev_field_name)
-                if self._lev >= vardata.dimensions[lev_field_name].size:
-                    print_error(
-                        f"User provided input for middle layer {self._lev} larger than actual data {len(lev) - 1}"
-                    )
-                lstart = self._lev * ncells2D
-                lend = lstart + ncells2D
-
-                for varmeta in self._midpoint_vars:
-                    if self._midpoint_selection.ArrayIsEnabled(varmeta.name):
-                        if output_mesh.CellData.HasArray(varmeta.name):
-                            to_remove.remove(varmeta.name)
-                        if (
-                            not output_mesh.CellData.HasArray(varmeta.name)
-                            or self._midpoint_update
-                        ):
-                            data = self._load_3d_slice(
-                                vardata, varmeta, timeInd, lstart, lend
-                            )
-                            output_mesh.CellData.append(data, varmeta.name)
-            self._midpoint_update = False
-        except Exception as e:
-            print_error("Error occurred while processing middle layer variables :", e)
-            traceback.print_exc()
-
-        try:
-            ilev_field_name = "ilev"
-            has_ilev_field = output_mesh.FieldData.HasArray(ilev_field_name)
-            ilev = self._get_cached_ilev(vardata)
-            if ilev is not None:
-                if not has_ilev_field:
-                    output_mesh.FieldData.append(ilev, ilev_field_name)
-                if self._ilev >= vardata.dimensions[ilev_field_name].size:
-                    print_error(
-                        f"User provided input for middle layer {self._ilev} larger than actual data {len(ilev) - 1}"
-                    )
-                ilstart = self._ilev * ncells2D
-                ilend = ilstart + ncells2D
-                for varmeta in self._interface_vars:
-                    if self._interface_selection.ArrayIsEnabled(varmeta.name):
-                        if output_mesh.CellData.HasArray(varmeta.name):
-                            to_remove.remove(varmeta.name)
-                        if (
-                            not output_mesh.CellData.HasArray(varmeta.name)
-                            or self._interface_update
-                        ):
-                            data = self._load_3d_slice(
-                                vardata, varmeta, timeInd, ilstart, ilend
-                            )
-                            output_mesh.CellData.append(data, varmeta.name)
-            self._interface_update = False
-        except Exception as e:
-            print_error(
-                "Error occurred while processing interface layer variables :", e
-            )
-            traceback.print_exc()
-
+                    data = self._load_variable(vardata, varmeta, timeInd)
+                    output_mesh.CellData.append(data, name)
+ 
         area_var_name = "area"
         if self._areavar and not output_mesh.CellData.HasArray(area_var_name):
             data = self._get_cached_area(vardata)

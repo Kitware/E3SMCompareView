@@ -381,6 +381,7 @@ class EAMApp(TrameApp):
                         for name in self.source.midpoint_vars
                     ),
                 ]
+                print(self.state.variables_listing)
 
                 # Update Layer/Time values and ui layout
                 n_cols = 0

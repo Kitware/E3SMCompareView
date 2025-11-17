@@ -39,18 +39,10 @@ class EAMVisSource:
         self.data_file = None
         self.conn_file = None
 
-        self.midpoints = []
-        self.interfaces = []
-
         # List of all available variables
-        self.surface_vars = []
-        self.midpoint_vars = []
-        self.interface_vars = []
-        # List of selected variables
-        self.surface_vars_sel = []
-        self.interface_vars_sel = []
-        self.midpoint_vars_sel = []
-
+        self.variables = None
+        self.dimensions = None
+ 
         self.data = None
         self.globe = None
         self.projection = "Cyl. Equidistant"
@@ -193,8 +185,6 @@ class EAMVisSource:
                 ConnectivityFile=conn_file,
                 DataFile=data_file,
             )
-            data.MiddleLayer = midpoint
-            data.InterfaceLayer = interface
             self.data = data
             vtk_obj = data.GetClientSideObject()
             vtk_obj.AddObserver("ErrorEvent", self.observer)
@@ -325,10 +315,6 @@ class EAMVisSource:
         self.data.SurfaceVariables = surf
         self.data.MidpointVariables = mid
         self.data.InterfaceVariables = intf
-        self.vars["surface"] = surf
-        self.vars["midpoint"] = mid
-        self.vars["interface"] = intf
-
 
 if __name__ == "__main__":
     e = EAMVisSource()
