@@ -40,8 +40,8 @@ class EAMVisSource:
         self.conn_file = None
 
         # List of all available variables
-        self.variables = None
-        self.dimensions = None
+        self.varmeta = None
+        self.dimmeta = None
  
         self.data = None
         self.globe = None
@@ -189,6 +189,8 @@ class EAMVisSource:
             vtk_obj = data.GetClientSideObject()
             vtk_obj.AddObserver("ErrorEvent", self.observer)
             vtk_obj.GetExecutive().AddObserver("ErrorEvent", self.observer)
+            self.varmeta = vtk_obj.GetVariables()
+            self.dimmeta = vtk_obj.GetDimensions()
             self.observer.clear()
         else:
             self.data.DataFile = data_file
@@ -204,20 +206,7 @@ class EAMVisSource:
                     "Please check if the data and connectivity files exist "
                     "and are compatible"
                 )
-
-            data_wrapped = dsa.WrapDataObject(sm.Fetch(self.data))
-            self.midpoints = data_wrapped.FieldData["lev"].tolist()
-            self.interfaces = data_wrapped.FieldData["ilev"].tolist()
-
-            self.surface_vars = list(
-                np.asarray(self.data.GetProperty("SurfaceVariablesInfo"))[::2]
-            )
-            self.midpoint_vars = list(
-                np.asarray(self.data.GetProperty("MidpointVariablesInfo"))[::2]
-            )
-            self.interface_vars = list(
-                np.asarray(self.data.GetProperty("InterfaceVariablesInfo"))[::2]
-            )
+            
             # Ensure TimestepValues is always a list
             timestep_values = self.data.TimestepValues
             if isinstance(timestep_values, (list, tuple)):
@@ -309,12 +298,10 @@ class EAMVisSource:
 
         return self.valid
 
-    def LoadVariables(self, surf, mid, intf):
+    def LoadVariables(self, vars):
         if not self.valid:
             return
-        self.data.SurfaceVariables = surf
-        self.data.MidpointVariables = mid
-        self.data.InterfaceVariables = intf
+        self.data.Variables = vars
 
 if __name__ == "__main__":
     e = EAMVisSource()

@@ -425,7 +425,8 @@ class ViewManager(TrameComponent):
         with DivLayout(self.server, template_name="auto_layout") as self.ui:
             if self.state.layout_grouped:
                 with v3.VCol(classes="pa-1"):
-                    for var_type in "smi":
+                    for var_type in variables.keys():
+ 
                         var_names = variables[var_type]
                         total_size = len(var_names)
 
@@ -436,7 +437,7 @@ class ViewManager(TrameComponent):
                             border="start",
                             classes="pr-1 py-1 pl-3 mb-1",
                             variant="flat",
-                            border_color=TYPE_COLOR[var_type],
+                            border_color=TYPE_COLOR.get(var_type, "primary"),
                         ):
                             with v3.VRow(dense=True):
                                 for name in var_names:

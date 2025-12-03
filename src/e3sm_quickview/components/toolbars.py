@@ -2,7 +2,8 @@ import asyncio
 
 from trame.app import asynchronous
 from trame.decorators import change
-from trame.widgets import html, vuetify3 as v3
+from trame.widgets import html, vuetify3 as v3, client
+
 
 from e3sm_quickview.utils import js, constants
 
@@ -233,81 +234,54 @@ class Cropping(v3.VToolbar):
 
 
 class DataSelection(v3.VToolbar):
+    
+    def on_update_slider(self, value, name, *args, **kwargs):
+        print(value, name, args, kwargs)
+        print(type(value))
+        with self.state:
+            self.state[f"{name}_idx"] = value
+        
+
     def __init__(self):
         super().__init__(**to_kwargs("select-slice-time"))
 
         with self:
             v3.VIcon("mdi-tune-variant", classes="ml-3 opacity-50")
-            with v3.VRow(classes="ma-0 pr-2 align-center", dense=True):
-                # midpoint layer
+            with v3.VRow(classes="ma-0 pr-2 overflow-y-auto", dense=True, style="max-height: 400px;"):
+                # Debug: Show animation_tracks array
+                # html.Div("Animation Tracks: {{ JSON.stringify(animation_tracks) }}", classes="col-12")
+                # Each track gets a column (3 per row)
                 with v3.VCol(
-                    cols=("toolbar_slider_cols", 4),
-                    v_show="midpoints.length > 1",
+                    cols=4,
+                    v_for="(track, idx) in animation_tracks",
+                    key="idx",
+                    classes="pa-2"
                 ):
-                    with v3.VRow(classes="mx-2 my-0"):
-                        v3.VLabel(
-                            "Layer Midpoints",
-                            classes="text-subtitle-2",
-                        )
-                        v3.VSpacer()
-                        v3.VLabel(
-                            "{{ parseFloat(midpoints[midpoint_idx] || 0).toFixed(2) }} hPa (k={{ midpoint_idx }})",
-                            classes="text-body-2",
-                        )
-                    v3.VSlider(
-                        v_model=("midpoint_idx", 0),
-                        min=0,
-                        max=("Math.max(0, midpoints.length - 1)",),
-                        step=1,
-                        density="compact",
-                        hide_details=True,
-                    )
+                    with client.Getter(name=("track.value",), value_name="t_values"):
+                        with client.Getter(name=("track.value + '_idx'",), value_name="t_idx"):
+                            html.Span("Track {{ idx }}: {{ track.title }} = {{ track.value }} {{get(track.value + '_idx')}}")
+                            with v3.VRow(classes="ma-0 align-center", dense=True):
+                                v3.VLabel(
+                                    "{{track.title}}",
+                                    classes="text-subtitle-2",
+                                )
+                                v3.VSpacer()
+                                v3.VLabel(
+                                    "{{track.value}}",
+                                    #"{{ parseFloat(get(track.value)[get(`${track.value}_idx`)]).toFixed(2) }} hPa (k={{ get(`${track.value}_idx`) }})",
+                                    classes="text-body-2",
+                                )
+                            v3.VSlider(
+                                model_value=("t_idx",),
+                                update_modelValue=(self.on_update_slider, "[$event, track.value, t_values]"),
+                                min=0,
+                                #max=100,#("get(track.value).length - 1",),
+                                max=("t_values.length - 1",),
+                                step=1,
+                                density="compact",
+                                hide_details=True,
+                            )
 
-                # interface layer
-                with v3.VCol(
-                    cols=("toolbar_slider_cols", 4),
-                    v_show="interfaces.length > 1",
-                ):
-                    with v3.VRow(classes="mx-2 my-0"):
-                        v3.VLabel(
-                            "Layer Interfaces",
-                            classes="text-subtitle-2",
-                        )
-                        v3.VSpacer()
-                        v3.VLabel(
-                            "{{ parseFloat(interfaces[interface_idx] || 0).toFixed(2) }} hPa (k={{interface_idx}})",
-                            classes="text-body-2",
-                        )
-                    v3.VSlider(
-                        v_model=("interface_idx", 0),
-                        min=0,
-                        max=("Math.max(0, interfaces.length - 1)",),
-                        step=1,
-                        density="compact",
-                        hide_details=True,
-                    )
-
-                # time
-                with v3.VCol(
-                    cols=("toolbar_slider_cols", 4),
-                    v_show="timestamps.length > 1",
-                ):
-                    self.state.setdefault("time_value", 80.50)
-                    with v3.VRow(classes="mx-2 my-0"):
-                        v3.VLabel("Time", classes="text-subtitle-2")
-                        v3.VSpacer()
-                        v3.VLabel(
-                            "{{ parseFloat(timestamps[time_idx]).toFixed(2) }} (t={{time_idx}})",
-                            classes="text-body-2",
-                        )
-                    v3.VSlider(
-                        v_model=("time_idx", 0),
-                        min=0,
-                        max=("Math.max(0, timestamps.length - 1)",),
-                        step=1,
-                        density="compact",
-                        hide_details=True,
-                    )
 
 
 class Animation(v3.VToolbar):
@@ -382,7 +356,7 @@ class Animation(v3.VToolbar):
     @change("animation_step")
     def _on_animation_step(self, animation_track, animation_step, **_):
         if animation_track:
-            self.state[constants.TRACK_STEPS[animation_track]] = animation_step
+            self.state[f"{animation_track}_idx"] = animation_step
 
     @change("animation_play")
     def _on_animation_play(self, animation_play, **_):

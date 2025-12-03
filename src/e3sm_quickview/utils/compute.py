@@ -36,9 +36,12 @@ def calculate_weighted_average(
 def extract_avgs(pv_data, array_names):
     results = {}
     vtk_data = servermanager.Fetch(pv_data)
+    print(vtk_data)
     area_array = vtk_data.GetCellData().GetArray("area")
     for name in array_names:
         vtk_array = vtk_data.GetCellData().GetArray(name)
+        print(f"Field Array {name} : ", vtk_array)
+        print("Area Array : ", area_array)
         avg_value = calculate_weighted_average(vtk_array, area_array)
         results[name] = avg_value
 
