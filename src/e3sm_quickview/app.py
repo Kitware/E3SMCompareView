@@ -468,7 +468,6 @@ class EAMApp(TrameApp):
         self.state.top_padding = top_padding
 
     def _on_slicing_change(self, var, ind_var, **_):
-        print(f"Here Updating {var}")
         self.source.UpdateSlicing(var, self.state[ind_var])
         self.source.UpdatePipeline()
 
@@ -496,7 +495,6 @@ class EAMApp(TrameApp):
         projection,
         **_,
     ):
-        print("Calling!!!!")
         if not variables_loaded:
             return
 

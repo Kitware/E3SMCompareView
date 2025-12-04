@@ -414,7 +414,6 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
                 else:
                     # Use all data for unspecified dimensions
                     slice_tuple.append(slice(None))
-            print(f"Fetching {varmeta.name} with tuple : {slice_tuple}")
             # Get data with proper slicing
             data = vardata[varmeta.name][tuple(slice_tuple)].data.flatten()
             data = np.where(data == varmeta.fillval, np.nan, data)

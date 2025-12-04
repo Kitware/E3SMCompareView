@@ -149,7 +149,6 @@ class EAMVisSource:
             self.slicing[dimension] = slice
             if self.data is not None:
                 x = json.dumps(self.slicing)
-                print(x)
                 self.data.Slicing = x
 
 
