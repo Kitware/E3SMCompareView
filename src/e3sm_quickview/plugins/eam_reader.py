@@ -405,16 +405,16 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
             for dim in varmeta.dimensions:
                 if dim == self._data_horizontal_dim:
                     continue
-                elif dim == "time":
-                    # Use timeInd for time dimension
-                    slice_tuple.append(timeInd)
+                #elif dim == "time":
+                #    # Use timeInd for time dimension
+                #    slice_tuple.append(timeInd)
                 elif hasattr(self, '_slices') and dim in self._slices:
                     # Use user-specified slice for this dimension
                     slice_tuple.append(self._slices[dim])
                 else:
                     # Use all data for unspecified dimensions
                     slice_tuple.append(slice(None))
-            
+            print(f"Fetching {varmeta.name} with tuple : {slice_tuple}")
             # Get data with proper slicing
             data = vardata[varmeta.name][tuple(slice_tuple)].data.flatten()
             data = np.where(data == varmeta.fillval, np.nan, data)

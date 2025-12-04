@@ -207,7 +207,6 @@ class EAMApp(TrameApp):
         from collections import defaultdict
         vars_per_type = defaultdict(list)
         for var in self.state.variables_selected:
-            print(self.state.variables_selected)
             type = self.source.varmeta[var].dimensions
             vars_per_type[type].append(var)
 
@@ -382,7 +381,6 @@ class EAMApp(TrameApp):
                         n_cols += 1
                         available_tracks.append({"title": name, "value": name})
                 self.state.toolbar_slider_cols = 12 / n_cols if n_cols else 12
-                print("************", available_tracks)
                 self.state.animation_tracks = available_tracks
                 self.state.animation_track = (
                     self.state.animation_tracks[0]["value"]
@@ -390,6 +388,7 @@ class EAMApp(TrameApp):
                     else None
                 )
                 
+                from functools import partial
                 # Initialize dynamic index variables for each dimension
                 for track in available_tracks:
                     dim_name = track["value"]
@@ -398,7 +397,7 @@ class EAMApp(TrameApp):
                         self.state[index_var] = 50
                     else:
                         self.state[index_var] = 0
-                print("***********", self.state.time_idx)   
+                    self.state.change(index_var)(partial(self._on_slicing_change, dim_name, index_var))
 
     @controller.set("file_selection_cancel")
     def data_loading_hide(self):
@@ -468,13 +467,28 @@ class EAMApp(TrameApp):
 
         self.state.top_padding = top_padding
 
+    def _on_slicing_change(self, var, ind_var, **_):
+        print(f"Here Updating {var}")
+        self.source.UpdateSlicing(var, self.state[ind_var])
+        self.source.UpdatePipeline()
+
+        self.view_manager.update_color_range()
+        self.view_manager.render()
+
+        # Update avg computation
+        # Get area variable to calculate weighted average
+        data = self.source.views["atmosphere_data"]
+        self.state.fields_avgs = compute.extract_avgs(
+            data, self.selected_variable_names
+        )
+
     @change(
         "variables_loaded",
         "crop_longitude",
         "crop_latitude",
         "projection",
     )
-    def _on_time_change(
+    def _on_downstream_change(
         self,
         variables_loaded,
         crop_longitude,
@@ -482,6 +496,7 @@ class EAMApp(TrameApp):
         projection,
         **_,
     ):
+        print("Calling!!!!")
         if not variables_loaded:
             return
 

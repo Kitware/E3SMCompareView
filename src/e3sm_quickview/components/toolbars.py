@@ -233,21 +233,16 @@ class Cropping(v3.VToolbar):
                     )
 
 
-class DataSelection(v3.VToolbar):
-    
-    def on_update_slider(self, value, name, *args, **kwargs):
-        print(value, name, args, kwargs)
-        print(type(value))
-        with self.state:
-            self.state[f"{name}_idx"] = value
-        
-
+class DataSelection(html.Div):
     def __init__(self):
-        super().__init__(**to_kwargs("select-slice-time"))
+        style = to_kwargs("select-slice-time")
+        style["classes"] = style["classes"] # + " d-flex align-center"
+        super().__init__(**style)
 
         with self:
             v3.VIcon("mdi-tune-variant", classes="ml-3 opacity-50")
-            with v3.VRow(classes="ma-0 pr-2 overflow-y-auto", dense=True, style="max-height: 400px;"):
+        
+            with v3.VRow(classes="ma-0 pr-2 flex-wrap", dense=True):
                 # Debug: Show animation_tracks array
                 # html.Div("Animation Tracks: {{ JSON.stringify(animation_tracks) }}", classes="col-12")
                 # Each track gets a column (3 per row)
@@ -259,7 +254,6 @@ class DataSelection(v3.VToolbar):
                 ):
                     with client.Getter(name=("track.value",), value_name="t_values"):
                         with client.Getter(name=("track.value + '_idx'",), value_name="t_idx"):
-                            html.Span("Track {{ idx }}: {{ track.title }} = {{ track.value }} {{get(track.value + '_idx')}}")
                             with v3.VRow(classes="ma-0 align-center", dense=True):
                                 v3.VLabel(
                                     "{{track.title}}",
@@ -267,13 +261,12 @@ class DataSelection(v3.VToolbar):
                                 )
                                 v3.VSpacer()
                                 v3.VLabel(
-                                    "{{track.value}}",
-                                    #"{{ parseFloat(get(track.value)[get(`${track.value}_idx`)]).toFixed(2) }} hPa (k={{ get(`${track.value}_idx`) }})",
+                                    "{{ parseFloat(t_values[t_idx]).toFixed(2) }} hPa (k={{ t_idx }})",
                                     classes="text-body-2",
                                 )
                             v3.VSlider(
                                 model_value=("t_idx",),
-                                update_modelValue=(self.on_update_slider, "[$event, track.value, t_values]"),
+                                update_modelValue=(self.on_update_slider, "[track.value, $event]"),
                                 min=0,
                                 #max=100,#("get(track.value).length - 1",),
                                 max=("t_values.length - 1",),
@@ -282,6 +275,9 @@ class DataSelection(v3.VToolbar):
                                 hide_details=True,
                             )
 
+    def on_update_slider(self, dimension, index, *_, **__):
+        with self.state:
+            self.state[f"{dimension}_idx"] = index
 
 
 class Animation(v3.VToolbar):

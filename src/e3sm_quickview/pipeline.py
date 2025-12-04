@@ -1,4 +1,5 @@
 import fnmatch
+import json
 import numpy as np
 import os
 
@@ -15,6 +16,7 @@ from paraview import servermanager as sm
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from vtkmodules.vtkCommonCore import vtkLogger
 
+from collections import defaultdict
 
 # Define a VTK error observer
 class ErrorObserver:
@@ -42,7 +44,8 @@ class EAMVisSource:
         # List of all available variables
         self.varmeta = None
         self.dimmeta = None
- 
+        self.slicing = defaultdict(int)
+
         self.data = None
         self.globe = None
         self.projection = "Cyl. Equidistant"
@@ -68,34 +71,6 @@ class EAMVisSource:
             vtkLogger.SetStderrVerbosity(vtkLogger.VERBOSITY_OFF)
         except Exception as e:
             print("Error loading plugin :", e)
-
-    def UpdateLev(self, lev, ilev):
-        if not self.valid:
-            return
-
-        if self.data is None:
-            return
-
-        # Handle NaN, None, or invalid values
-        try:
-            if lev is None or (isinstance(lev, float) and np.isnan(lev)):
-                lev_idx = 0
-            else:
-                lev_idx = int(lev)
-        except (ValueError, TypeError):
-            lev_idx = 0
-
-        try:
-            if ilev is None or (isinstance(ilev, float) and np.isnan(ilev)):
-                ilev_idx = 0
-            else:
-                ilev_idx = int(ilev)
-        except (ValueError, TypeError):
-            ilev_idx = 0
-
-        if self.data.MiddleLayer != lev_idx or self.data.InterfaceLayer != ilev_idx:
-            self.data.MiddleLayer = lev_idx
-            self.data.InterfaceLayer = ilev_idx
 
     def ApplyClipping(self, cliplong, cliplat):
         if not self.valid:
@@ -167,7 +142,18 @@ class EAMVisSource:
         self.views["continents"] = OutputPort(cont_proj, 0)
         self.views["grid_lines"] = OutputPort(grid_proj, 0)
 
-    def Update(self, data_file, conn_file, midpoint=0, interface=0, force_reload=False):
+    def UpdateSlicing(self, dimension, slice):
+        if self.slicing.get(dimension) == slice:
+            return
+        else:
+            self.slicing[dimension] = slice
+            if self.data is not None:
+                x = json.dumps(self.slicing)
+                print(x)
+                self.data.Slicing = x
+
+
+    def Update(self, data_file, conn_file, force_reload=False):
         # Check if we need to reload
         if (
             not force_reload
@@ -191,6 +177,11 @@ class EAMVisSource:
             vtk_obj.GetExecutive().AddObserver("ErrorEvent", self.observer)
             self.varmeta = vtk_obj.GetVariables()
             self.dimmeta = vtk_obj.GetDimensions()
+
+            for dim in self.dimmeta.keys():
+                self.slicing[dim] = 0
+
+            print(self.slicing)
             self.observer.clear()
         else:
             self.data.DataFile = data_file
@@ -299,6 +290,7 @@ class EAMVisSource:
         return self.valid
 
     def LoadVariables(self, vars):
+        print(f"Gonna Load {vars}")
         if not self.valid:
             return
         self.data.Variables = vars
