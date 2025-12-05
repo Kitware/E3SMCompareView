@@ -41,11 +41,20 @@ COL_SIZE_LOOKUP = {
     "flow": None,
 }
 
-TYPE_COLOR = {
-    "s": "success",
-    "i": "info",
-    "m": "warning",
-}
+TYPE_COLORS = [
+    "success",
+    "info",
+    "warning",
+    "error",
+    "purple",
+    "cyan",
+    "teal",
+    "indigo",
+    "pink",
+    "amber",
+    "lime",
+    "deep-purple",
+]
 
 
 def lut_name(element):
@@ -425,8 +434,7 @@ class ViewManager(TrameComponent):
         with DivLayout(self.server, template_name="auto_layout") as self.ui:
             if self.state.layout_grouped:
                 with v3.VCol(classes="pa-1"):
-                    for var_type in variables.keys():
- 
+                    for idx, var_type in enumerate(variables.keys()):
                         var_names = variables[var_type]
                         total_size = len(var_names)
 
@@ -437,7 +445,7 @@ class ViewManager(TrameComponent):
                             border="start",
                             classes="pr-1 py-1 pl-3 mb-1",
                             variant="flat",
-                            border_color=TYPE_COLOR.get(var_type, "primary"),
+                            border_color=TYPE_COLORS[idx % len(TYPE_COLORS)],
                         ):
                             with v3.VRow(dense=True):
                                 for name in var_names:
@@ -468,7 +476,7 @@ class ViewManager(TrameComponent):
             else:
                 all_names = [name for names in variables.values() for name in names]
                 with v3.VRow(dense=True, classes="pa-2"):
-                    for var_type in "smi":
+                    for var_type in variables.keys():
                         var_names = variables[var_type]
                         for name in var_names:
                             view = self.get_view(name, var_type)
@@ -504,7 +512,7 @@ class ViewManager(TrameComponent):
         existed_order = set()
         order_max = 0
         orders_to_update = []
-        for var_type in "smi":
+        for var_type in variables.keys():
             var_names = variables[var_type]
             for name in var_names:
                 config = self.get_view(name, var_type).config
