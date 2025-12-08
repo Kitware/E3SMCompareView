@@ -5,7 +5,7 @@ from trame.decorators import change
 from trame.widgets import html, vuetify3 as v3, client
 
 
-from e3sm_quickview.utils import js, constants
+from e3sm_quickview.utils import js
 
 DENSITY = {
     "adjust-layout": "compact",
@@ -17,7 +17,7 @@ DENSITY = {
 SIZES = {
     "adjust-layout": 49,
     "adjust-databounds": 65,
-    "select-slice-time": 65,
+    "select-slice-time": 70,
     "animation-controls": 49,
 }
 
@@ -236,13 +236,17 @@ class Cropping(v3.VToolbar):
 class DataSelection(html.Div):
     def __init__(self):
         style = to_kwargs("select-slice-time")
-        style["classes"] = style["classes"] # + " d-flex align-center"
+        # Use style instead of d-flex class to avoid !important override of v-show
+        # Add background color to match VToolbar appearance
+        style["style"] = (
+            "display: flex; align-items: center; background: rgb(var(--v-theme-surface));"
+        )
         super().__init__(**style)
 
         with self:
-            v3.VIcon("mdi-tune-variant", classes="ml-3 opacity-50")
-        
-            with v3.VRow(classes="ma-0 pr-2 flex-wrap", dense=True):
+            v3.VIcon("mdi-tune-variant", classes="ml-3 mr-2 opacity-50")
+
+            with v3.VRow(classes="ma-0 pr-2 flex-wrap flex-grow-1", dense=True):
                 # Debug: Show animation_tracks array
                 # html.Div("Animation Tracks: {{ JSON.stringify(animation_tracks) }}", classes="col-12")
                 # Each track gets a column (3 per row)
@@ -250,10 +254,12 @@ class DataSelection(html.Div):
                     cols=4,
                     v_for="(track, idx) in animation_tracks",
                     key="idx",
-                    classes="pa-2"
+                    classes="pa-2",
                 ):
                     with client.Getter(name=("track.value",), value_name="t_values"):
-                        with client.Getter(name=("track.value + '_idx'",), value_name="t_idx"):
+                        with client.Getter(
+                            name=("track.value + '_idx'",), value_name="t_idx"
+                        ):
                             with v3.VRow(classes="ma-0 align-center", dense=True):
                                 v3.VLabel(
                                     "{{track.title}}",
@@ -266,9 +272,12 @@ class DataSelection(html.Div):
                                 )
                             v3.VSlider(
                                 model_value=("t_idx",),
-                                update_modelValue=(self.on_update_slider, "[track.value, $event]"),
+                                update_modelValue=(
+                                    self.on_update_slider,
+                                    "[track.value, $event]",
+                                ),
                                 min=0,
-                                #max=100,#("get(track.value).length - 1",),
+                                # max=100,#("get(track.value).length - 1",),
                                 max=("t_values.length - 1",),
                                 step=1,
                                 density="compact",

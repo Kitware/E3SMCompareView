@@ -1,6 +1,5 @@
 import fnmatch
 import json
-import numpy as np
 import os
 
 
@@ -12,11 +11,10 @@ from paraview.simple import (
     LegacyVTKReader,
 )
 
-from paraview import servermanager as sm
-from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from vtkmodules.vtkCommonCore import vtkLogger
 
 from collections import defaultdict
+
 
 # Define a VTK error observer
 class ErrorObserver:
@@ -151,7 +149,6 @@ class EAMVisSource:
                 x = json.dumps(self.slicing)
                 self.data.Slicing = x
 
-
     def Update(self, data_file, conn_file, force_reload=False):
         # Check if we need to reload
         if (
@@ -165,7 +162,7 @@ class EAMVisSource:
         self.conn_file = conn_file
 
         if self.data is None:
-            data = EAMSliceDataReader(
+            data = EAMSliceDataReader(  # noqa: F821
                 registrationName="AtmosReader",
                 ConnectivityFile=conn_file,
                 DataFile=data_file,
@@ -180,7 +177,6 @@ class EAMVisSource:
             for dim in self.dimmeta.keys():
                 self.slicing[dim] = 0
 
-            print(self.slicing)
             self.observer.clear()
         else:
             self.data.DataFile = data_file
@@ -196,7 +192,7 @@ class EAMVisSource:
                     "Please check if the data and connectivity files exist "
                     "and are compatible"
                 )
-            
+
             # Ensure TimestepValues is always a list
             timestep_values = self.data.TimestepValues
             if isinstance(timestep_values, (list, tuple)):
@@ -213,7 +209,7 @@ class EAMVisSource:
                 )
 
             # Step 1: Extract and transform atmospheric data
-            atmos_extract = EAMTransformAndExtract(
+            atmos_extract = EAMTransformAndExtract(  # noqa: F821
                 registrationName="AtmosExtract", Input=self.data
             )
             atmos_extract.LongitudeRange = [-180.0, 180.0]
@@ -222,7 +218,7 @@ class EAMVisSource:
             self.extents = atmos_extract.GetDataInformation().GetBounds()
 
             # Step 2: Apply map projection to atmospheric data
-            atmos_proj = EAMProject(
+            atmos_proj = EAMProject(  # noqa: F821
                 registrationName="AtmosProj", Input=OutputPort(atmos_extract, 0)
             )
             atmos_proj.Projection = self.projection
@@ -247,14 +243,14 @@ class EAMVisSource:
                 self.globe = cont_contour
 
             # Step 4: Extract and transform continent data
-            cont_extract = EAMTransformAndExtract(
+            cont_extract = EAMTransformAndExtract(  # noqa: F821
                 registrationName="ContExtract", Input=self.globe
             )
             cont_extract.LongitudeRange = [-180.0, 180.0]
             cont_extract.LatitudeRange = [-90.0, 90.0]
 
             # Step 5: Apply map projection to continents
-            cont_proj = EAMProject(
+            cont_proj = EAMProject(  # noqa: F821
                 registrationName="ContProj", Input=OutputPort(cont_extract, 0)
             )
             cont_proj.Projection = self.projection
@@ -262,11 +258,11 @@ class EAMVisSource:
             cont_proj.UpdatePipeline()
 
             # Step 6: Generate lat/lon grid lines
-            grid_gen = EAMGridLines(registrationName="GridGen")
+            grid_gen = EAMGridLines(registrationName="GridGen")  # noqa: F821
             grid_gen.UpdatePipeline()
 
             # Step 7: Apply map projection to grid lines
-            grid_proj = EAMProject(
+            grid_proj = EAMProject(  # noqa: F821
                 registrationName="GridProj", Input=OutputPort(grid_gen, 0)
             )
             grid_proj.Projection = self.projection
@@ -289,10 +285,10 @@ class EAMVisSource:
         return self.valid
 
     def LoadVariables(self, vars):
-        print(f"Gonna Load {vars}")
         if not self.valid:
             return
         self.data.Variables = vars
+
 
 if __name__ == "__main__":
     e = EAMVisSource()

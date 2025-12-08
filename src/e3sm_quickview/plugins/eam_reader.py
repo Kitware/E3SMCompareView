@@ -1,9 +1,9 @@
-from paraview.util.vtkAlgorithm import *
+from vtkmodules.util.vtkAlgorithm import VTKPythonAlgorithmBase
+from paraview.util.vtkAlgorithm import smproxy, smproperty
 from vtkmodules.numpy_interface import dataset_adapter as dsa
 from vtkmodules.vtkCommonCore import vtkPoints, vtkDataArraySelection
 from vtkmodules.vtkCommonDataModel import vtkUnstructuredGrid, vtkCellArray
 from vtkmodules.util import vtkConstants, numpy_support
-from vtkmodules.util.vtkAlgorithm import VTKPythonAlgorithmBase
 from paraview import print_error, print_warning
 
 try:
@@ -32,80 +32,81 @@ class EAMConstants:
     PS0 = float(1e5)
 
 
-from enum import Enum  # noqa: E402
-
 class DimMeta:
     """Simple class to store dimension metadata."""
+
     def __init__(self, name, size, data=None):
         self.name = name
         self.size = size
         self.long_name = None
         self.units = None
         self.data = data  # Store the actual dimension coordinate values
-    
+
     def __getitem__(self, key):
         """Dict-like access to attributes."""
         return getattr(self, key, None)
-    
+
     def __setitem__(self, key, value):
         """Dict-like setting of attributes."""
         setattr(self, key, value)
-    
+
     def update_from_variable(self, var_info):
         """Update metadata from netCDF variable info - only long_name and units."""
         try:
-            self.long_name = var_info.getncattr('long_name')
+            self.long_name = var_info.getncattr("long_name")
         except AttributeError:
             pass
-        
+
         try:
-            self.units = var_info.getncattr('units')
+            self.units = var_info.getncattr("units")
         except AttributeError:
             pass
-    
+
     def __repr__(self):
         return f"DimMeta(name='{self.name}', size={self.size}, long_name='{self.long_name}')"
 
+
 class VarMeta:
     """Simple class to store variable metadata."""
+
     def __init__(self, name, info, horizontal_dim=None):
         self.name = name
         self.dimensions = info.dimensions  # Store dimensions for slicing
         self.fillval = np.nan
         self.long_name = None
-        
+
         # Extract metadata from info
         self._extract_metadata(info)
-    
+
     def _extract_metadata(self, info):
         """Helper to extract metadata attributes from netCDF variable."""
         # Try to get fill value from either _FillValue or missing_value
-        for fillattr in ['_FillValue', 'missing_value']:
+        for fillattr in ["_FillValue", "missing_value"]:
             value = self._get_attr(info, fillattr)
             if value is not None:
                 self.fillval = value
                 break
-        
+
         # Get long_name if available
-        long_name = self._get_attr(info, 'long_name')
+        long_name = self._get_attr(info, "long_name")
         if long_name is not None:
             self.long_name = long_name
-    
+
     def _get_attr(self, info, attr_name):
         """Safely get an attribute from netCDF variable info."""
         try:
             return info.getncattr(attr_name)
         except (AttributeError, KeyError):
             return None
-    
+
     def __getitem__(self, key):
         """Dict-like access to attributes."""
         return getattr(self, key, None)
-    
+
     def __setitem__(self, key, value):
         """Dict-like setting of attributes."""
         setattr(self, key, value)
-    
+
     def __repr__(self):
         return f"VarMeta(name='{self.name}', dimensions={self.dimensions})"
 
@@ -178,9 +179,6 @@ def createModifiedCallback(anobject):
     return _markmodified
 
 
-import traceback  # noqa: E402
-
-
 @smproxy.reader(
     name="EAMSliceSource",
     label="EAM Slice Data Reader",
@@ -244,7 +242,6 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
         self._timeSteps = []
         # Dictionary to store dimension slices
         self._slices = {}
-        
 
         # vtkDataArraySelection to allow users choice for fields
         # to fetch from the netCDF data set
@@ -270,10 +267,10 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
         self._cached_ncells2D = None
 
         # Special variable caching
-        #self._cached_lev = None
-        #self._cached_ilev = None
+        # self._cached_lev = None
+        # self._cached_ilev = None
         self._cached_area = None
-        
+
         # Dynamic dimension detection
         self._horizontal_dim = None
         self._data_horizontal_dim = None  # Matched in data file
@@ -338,23 +335,25 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
         """Identify horizontal dimension from connectivity and match with data file."""
         if self._horizontal_dim and self._data_horizontal_dim:
             return  # Already identified
-        
+
         # Get first dimension from connectivity file
         conn_dims = list(meshdata.dimensions.keys())
         if not conn_dims:
             print_error("No dimensions found in connectivity file")
             return
-        
+
         self._horizontal_dim = conn_dims[0]
         conn_size = meshdata.dimensions[self._horizontal_dim].size
-        
+
         # Match dimension in data file by size
         for dim_name, dim_obj in vardata.dimensions.items():
             if dim_obj.size == conn_size:
                 self._data_horizontal_dim = dim_name
                 return
-        
-        print_error(f"Could not match horizontal dimension size {conn_size} in data file")
+
+        print_error(
+            f"Could not match horizontal dimension size {conn_size} in data file"
+        )
 
     def _clear_geometry_cache(self):
         """Clear cached geometry data."""
@@ -405,10 +404,10 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
             for dim in varmeta.dimensions:
                 if dim == self._data_horizontal_dim:
                     continue
-                #elif dim == "time":
+                # elif dim == "time":
                 #    # Use timeInd for time dimension
                 #    slice_tuple.append(timeInd)
-                elif hasattr(self, '_slices') and dim in self._slices:
+                elif hasattr(self, "_slices") and dim in self._slices:
                     # Use user-specified slice for this dimension
                     slice_tuple.append(self._slices[dim])
                 else:
@@ -439,12 +438,12 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
 
         dims = meshdata.dimensions
         mvars = np.array(list(meshdata.variables.keys()))
-        
+
         # Use the identified horizontal dimension
         if not self._horizontal_dim:
             print_error("Horizontal dimension not identified in connectivity file")
             return
-        
+
         ncells2D = dims[self._horizontal_dim].size
         self._cached_ncells2D = ncells2D
 
@@ -491,58 +490,60 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
     def _populate_variable_metadata(self):
         if self._DataFileName is None or self._ConnFileName is None:
             return
-        
+
         meshdata = self._get_mesh_dataset()
         vardata = self._get_var_dataset()
-        
+
         # Identify horizontal dimensions first
         self._identify_horizontal_dimension(meshdata, vardata)
-        
+
         if not self._data_horizontal_dim:
             print_error("Could not detect horizontal dimension in data file")
             return
-        
+
         # Clear existing selection arrays BEFORE adding new ones
         self._variable_selection.RemoveAllArrays()
-        
-        # Collect all unique dimensions that need slicing
+
+        # First pass: collect dimensions used by valid variables
         all_dimensions = set()
-        
-        # Store dimension metadata
-        self._dimensions.clear()
-        for dim_name, dim_obj in vardata.dimensions.items():
-            # Create DimMeta object
-            dim_meta = DimMeta(dim_name, dim_obj.size)
-            
-            # Try to load dimension coordinate variable if it exists
-            if dim_name in vardata.variables:
-                dim_var = vardata.variables[dim_name]
-                # Load dimension data
-                try:
-                    dim_meta.data = vardata[dim_name][:].data
-                except:
-                    pass
-                # Update metadata from variable attributes
-                dim_meta.update_from_variable(dim_var)
-            
-            self._dimensions[dim_name] = dim_meta
-        
         for name, info in vardata.variables.items():
             dims = set(info.dimensions)
-            if not self._data_horizontal_dim in dims:
+            if self._data_horizontal_dim not in dims:
                 continue
             varmeta = VarMeta(name, info, self._data_horizontal_dim)
             if len(dims) == 1 and "area" in name:
-                    self._areavar = varmeta
+                self._areavar = varmeta
             if len(dims) > 1:
                 all_dimensions.update(dims)
-            self._variables[name] = varmeta  # Store by name as key
+            self._variables[name] = varmeta
             self._variable_selection.AddArray(name)
-        
-        # Initialize slices for all dimensions at once
-        for dim in all_dimensions:
-            if dim not in self._slices:  # Only set if not already set
+
+        # Remove the horizontal dimension from sliceable dimensions
+        all_dimensions.discard(self._data_horizontal_dim)
+
+        # Second pass: only populate _dimensions for dimensions that are:
+        # 1. Used by at least one valid variable
+        # 2. Have arity > 1
+        self._dimensions.clear()
+        for dim_name in all_dimensions:
+            if dim_name in vardata.dimensions:
+                dim_obj = vardata.dimensions[dim_name]
+                if dim_obj.size > 1:
+                    dim_meta = DimMeta(dim_name, dim_obj.size)
+                    if dim_name in vardata.variables:
+                        dim_var = vardata.variables[dim_name]
+                        try:
+                            dim_meta.data = vardata[dim_name][:].data
+                        except Exception:
+                            pass
+                        dim_meta.update_from_variable(dim_var)
+                    self._dimensions[dim_name] = dim_meta
+
+        # Initialize slices for relevant dimensions
+        for dim in self._dimensions:
+            if dim not in self._slices:
                 self._slices[dim] = 0
+
         self._variable_selection.DisableAllArrays()
 
         # Clear old timestamps before adding new ones
@@ -588,18 +589,19 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
     def SetSlicing(self, slice_str):
         # Parse JSON string containing dimension slices and update self._slices
         # Initialize _slices if not already done
-        if not hasattr(self, '_slices'):
+        if not hasattr(self, "_slices"):
             self._slices = {}
-        
+
         # Initialize dimensions if not already done
-        if not hasattr(self, '_dimensions'):
+        if not hasattr(self, "_dimensions"):
             self._dimensions = {}
-            
+
         if slice_str and slice_str.strip():  # Check for non-empty string
             try:
                 import json
+
                 slice_dict = json.loads(slice_str)
-                
+
                 # Validate and update slices for provided dimensions
                 invalid_slices = []
                 for dim, slice_val in slice_dict.items():
@@ -615,24 +617,26 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
                                 if dim_meta.long_name:
                                     dim_display += f" ({dim_meta.long_name})"
                                 invalid_slices.append(
-                                    f"{dim_display}={slice_val} (valid range: 0-{dim_size-1})"
+                                    f"{dim_display}={slice_val} (valid range: 0-{dim_size - 1})"
                                 )
                             else:
                                 self._slices[dim] = slice_val
                         else:
-                            print_error(f"Slice value for '{dim}' must be an integer, got {type(slice_val).__name__}")
+                            print_error(
+                                f"Slice value for '{dim}' must be an integer, got {type(slice_val).__name__}"
+                            )
                     else:
                         # Store the slice anyway for dimensions we haven't seen yet
                         # (might be populated later)
                         self._slices[dim] = slice_val
                         if self._dimensions:  # Only warn if we have dimension info
                             print_warning(f"Dimension '{dim}' not found in data file")
-                
+
                 if invalid_slices:
                     print_error(f"Invalid slice indices: {', '.join(invalid_slices)}")
                 else:
                     self.Modified()
-                    
+
             except (json.JSONDecodeError, ValueError) as e:
                 print_error(f"Invalid JSON for slicing: {e}")
             except Exception as e:
@@ -645,7 +649,7 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
 
     def GetVariables(self):
         return self._variables
-    
+
     def GetDimensions(self):
         return self._dimensions
 
@@ -724,14 +728,14 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
 
         # Ensure dimensions are identified
         self._identify_horizontal_dimension(meshdata, vardata)
-        
+
         if not self._horizontal_dim or not self._data_horizontal_dim:
             print_error("Could not identify required dimensions from files")
             return 0
-        
+
         # Build geometry if not cached
         self._build_geometry(meshdata)
-        
+
         if self._cached_points is None:
             print_error("Could not build geometry from connectivity file")
             return 0
@@ -752,9 +756,6 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
 
             self._dirty = False
 
-        # Use cached ncells2D
-        ncells2D = self._cached_ncells2D
-
         # Needed to drop arrays from cached VTK Object
         to_remove = set()
         last_num_arrays = output_mesh.CellData.GetNumberOfArrays()
@@ -765,13 +766,10 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
             if self._variable_selection.ArrayIsEnabled(name):
                 if output_mesh.CellData.HasArray(name):
                     to_remove.remove(name)
-                if (
-                    not output_mesh.CellData.HasArray(name)
-                    or self._surface_update
-                ):
+                if not output_mesh.CellData.HasArray(name) or self._surface_update:
                     data = self._load_variable(vardata, varmeta, timeInd)
                     output_mesh.CellData.append(data, name)
- 
+
         area_var_name = "area"
         if self._areavar and not output_mesh.CellData.HasArray(area_var_name):
             data = self._get_cached_area(vardata)

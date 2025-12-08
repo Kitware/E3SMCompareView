@@ -9,7 +9,7 @@ from trame_dataclass.core import StateDataModel
 
 from paraview import simple
 
-from e3sm_quickview.components import view
+from e3sm_quickview.components import view as tview
 from e3sm_quickview.utils.color import get_cached_colorbar_image, COLORBAR_CACHE
 from e3sm_quickview.presets import COLOR_BLIND_SAFE
 
@@ -40,21 +40,6 @@ COL_SIZE_LOOKUP = {
     12: 1,
     "flow": None,
 }
-
-TYPE_COLORS = [
-    "success",
-    "info",
-    "warning",
-    "error",
-    "purple",
-    "cyan",
-    "teal",
-    "indigo",
-    "pink",
-    "amber",
-    "lime",
-    "deep-purple",
-]
 
 
 def lut_name(element):
@@ -244,7 +229,7 @@ class VariableView(TrameComponent):
                     dense=True,
                     classes="ma-0 pa-0 bg-black opacity-90 d-flex align-center",
                 ):
-                    view.create_size_menu(self.name, self.config)
+                    tview.create_size_menu(self.name, self.config)
                     with html.Div(
                         self.variable_name,
                         classes="text-subtitle-2 pr-2",
@@ -311,7 +296,7 @@ class VariableView(TrameComponent):
                         self.view, interactive_ratio=1, ctx_name=self.name
                     )
 
-                view.create_bottom_bar(self.config, self.update_color_preset)
+                tview.create_bottom_bar(self.config, self.update_color_preset)
 
 
 class ViewManager(TrameComponent):
@@ -431,21 +416,25 @@ class ViewManager(TrameComponent):
 
         # Create UI based on variables
         self.state.swap_groups = {}
+        # Build a lookup from type name to color from state.variable_types
+        type_to_color = {vt["name"]: vt["color"] for vt in self.state.variable_types}
         with DivLayout(self.server, template_name="auto_layout") as self.ui:
             if self.state.layout_grouped:
                 with v3.VCol(classes="pa-1"):
-                    for idx, var_type in enumerate(variables.keys()):
+                    for var_type in variables.keys():
                         var_names = variables[var_type]
                         total_size = len(var_names)
 
                         if total_size == 0:
                             continue
 
+                        # Look up color from variable_types to match chip colors
+                        border_color = type_to_color.get(str(var_type), "primary")
                         with v3.VAlert(
                             border="start",
                             classes="pr-1 py-1 pl-3 mb-1",
                             variant="flat",
-                            border_color=TYPE_COLORS[idx % len(TYPE_COLORS)],
+                            border_color=border_color,
                         ):
                             with v3.VRow(dense=True):
                                 for name in var_names:

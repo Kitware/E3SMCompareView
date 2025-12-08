@@ -14,7 +14,7 @@ from e3sm_quickview import module as qv_module
 from e3sm_quickview.assets import ASSETS
 from e3sm_quickview.components import doc, file_browser, css, toolbars, dialogs, drawers
 from e3sm_quickview.pipeline import EAMVisSource
-from e3sm_quickview.utils import compute, js, constants, cli
+from e3sm_quickview.utils import compute, cli
 from e3sm_quickview.view_manager import ViewManager
 
 
@@ -45,6 +45,8 @@ class EAMApp(TrameApp):
                 "variables_selected": [],
                 # Control 'Load Variables' button availability
                 "variables_loaded": False,
+                # Dynamic type-color mapping (populated when data loads)
+                "variable_types": [],
                 # Dimension arrays (will be populated dynamically)
                 "midpoints": [],
                 "interfaces": [],
@@ -205,6 +207,7 @@ class EAMApp(TrameApp):
     @property
     def selected_variables(self):
         from collections import defaultdict
+
         vars_per_type = defaultdict(list)
         for var in self.state.variables_selected:
             type = self.source.varmeta[var].dimensions
@@ -365,9 +368,24 @@ class EAMApp(TrameApp):
                 self.state.variables_filter = ""
                 self.state.variables_listing = [
                     *(
-                        {"name": var.name, "type": str(var.dimensions), "id": f"{var.name}"}
+                        {
+                            "name": var.name,
+                            "type": str(var.dimensions),
+                            "id": f"{var.name}",
+                        }
                         for _, var in self.source.varmeta.items()
                     ),
+                ]
+
+                # Build dynamic type-color mapping
+                from e3sm_quickview.utils.colors import get_type_color
+
+                dim_types = sorted(
+                    set(str(var.dimensions) for var in self.source.varmeta.values())
+                )
+                self.state.variable_types = [
+                    {"name": t, "color": get_type_color(i)}
+                    for i, t in enumerate(dim_types)
                 ]
 
                 # Update Layer/Time values and ui layout
@@ -376,7 +394,13 @@ class EAMApp(TrameApp):
                 for name, dim in self.source.dimmeta.items():
                     values = dim.data
                     # Convert to list for JSON serialization
-                    self.state[name] = values.tolist() if hasattr(values, 'tolist') else list(values) if values is not None else []
+                    self.state[name] = (
+                        values.tolist()
+                        if hasattr(values, "tolist")
+                        else list(values)
+                        if values is not None
+                        else []
+                    )
                     if values is not None and len(values) > 1:
                         n_cols += 1
                         available_tracks.append({"title": name, "value": name})
@@ -387,8 +411,9 @@ class EAMApp(TrameApp):
                     if available_tracks
                     else None
                 )
-                
+
                 from functools import partial
+
                 # Initialize dynamic index variables for each dimension
                 for track in available_tracks:
                     dim_name = track["value"]
@@ -397,7 +422,9 @@ class EAMApp(TrameApp):
                         self.state[index_var] = 50
                     else:
                         self.state[index_var] = 0
-                    self.state.change(index_var)(partial(self._on_slicing_change, dim_name, index_var))
+                    self.state.change(index_var)(
+                        partial(self._on_slicing_change, dim_name, index_var)
+                    )
 
     @controller.set("file_selection_cancel")
     def data_loading_hide(self):
@@ -414,10 +441,8 @@ class EAMApp(TrameApp):
 
         # Flatten the list of lists
         flattened_vars = [var for var_list in vars_to_show.values() for var in var_list]
-        
-        self.source.LoadVariables(
-            flattened_vars
-        )
+
+        self.source.LoadVariables(flattened_vars)
 
         # Trigger source update + compute avg
         with self.state:
@@ -461,7 +486,7 @@ class EAMApp(TrameApp):
             if name == "select-slice-time":
                 track_count = len(self.state.animation_tracks or [])
                 rows_needed = max(1, (track_count + 2) // 3)  # 3 sliders per row
-                top_padding += 65 * rows_needed
+                top_padding += 70 * rows_needed
             else:
                 top_padding += toolbars.SIZES.get(name, 0)
 

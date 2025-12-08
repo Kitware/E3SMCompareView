@@ -68,20 +68,26 @@ class FieldSelection(v3.VNavigationDrawer):
 
         with self:
             with html.Div(style="position:fixed;top:0;width: 500px;"):
-                with v3.VCardActions(key="variables_selected.length"):
-                    for name, color in [
-                        ("surfaces", "success"),
-                        ("interfaces", "info"),
-                        ("midpoints", "warning"),
-                    ]:
-                        v3.VChip(
-                            js.var_title(name),
-                            color=color,
-                            v_show=js.var_count(name),
-                            size="small",
-                            closable=True,
-                            click_close=js.var_remove(name),
-                        )
+                with v3.VCardActions(
+                    key="variables_selected.length",
+                    classes="flex-wrap",
+                    style="overflow-y: auto; max-height: 100px;",
+                ):
+                    v3.VChip(
+                        "{{ variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type === vtype.name).length }} {{ vtype.name }}",
+                        v_for="(vtype, idx) in variable_types",
+                        key="idx",
+                        color=("vtype.color",),
+                        v_show=(
+                            "variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type === vtype.name).length",
+                        ),
+                        size="small",
+                        closable=True,
+                        click_close=(
+                            "variables_selected = variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type !== vtype.name)",
+                        ),
+                        classes="ma-1",
+                    )
 
                     v3.VSpacer()
                     v3.VBtn(
