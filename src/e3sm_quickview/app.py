@@ -14,7 +14,7 @@ from e3sm_quickview import module as qv_module
 from e3sm_quickview.assets import ASSETS
 from e3sm_quickview.components import doc, file_browser, css, toolbars, dialogs, drawers
 from e3sm_quickview.pipeline import EAMVisSource
-from e3sm_quickview.utils import compute, js, constants, cli
+from e3sm_quickview.utils import compute, cli
 from e3sm_quickview.view_manager import ViewManager
 
 
@@ -45,13 +45,11 @@ class EAMApp(TrameApp):
                 "variables_selected": [],
                 # Control 'Load Variables' button availability
                 "variables_loaded": False,
-                # Level controls
-                "midpoint_idx": 0,
+                # Dynamic type-color mapping (populated when data loads)
+                "variable_types": [],
+                # Dimension arrays (will be populated dynamically)
                 "midpoints": [],
-                "interface_idx": 0,
                 "interfaces": [],
-                # Time controls
-                "time_idx": 0,
                 "timestamps": [],
                 # Fields summaries
                 "fields_avgs": {},
@@ -208,18 +206,19 @@ class EAMApp(TrameApp):
 
     @property
     def selected_variables(self):
-        vars_per_type = {n: [] for n in "smi"}
-        for var in self.state.variables_selected:
-            type = var[0]
-            name = var[1:]
-            vars_per_type[type].append(name)
+        from collections import defaultdict
 
-        return vars_per_type
+        vars_per_type = defaultdict(list)
+        for var in self.state.variables_selected:
+            type = self.source.varmeta[var].dimensions
+            vars_per_type[type].append(var)
+
+        return dict(vars_per_type)
 
     @property
     def selected_variable_names(self):
         # Remove var type (first char)
-        return [var[1:] for var in self.state.variables_selected]
+        return [var for var in self.state.variables_selected]
 
     # -------------------------------------------------------------------------
     # Methods connected to UI
@@ -369,30 +368,42 @@ class EAMApp(TrameApp):
                 self.state.variables_filter = ""
                 self.state.variables_listing = [
                     *(
-                        {"name": name, "type": "surface", "id": f"s{name}"}
-                        for name in self.source.surface_vars
+                        {
+                            "name": var.name,
+                            "type": str(var.dimensions),
+                            "id": f"{var.name}",
+                        }
+                        for _, var in self.source.varmeta.items()
                     ),
-                    *(
-                        {"name": name, "type": "interface", "id": f"i{name}"}
-                        for name in self.source.interface_vars
-                    ),
-                    *(
-                        {"name": name, "type": "midpoint", "id": f"m{name}"}
-                        for name in self.source.midpoint_vars
-                    ),
+                ]
+
+                # Build dynamic type-color mapping
+                from e3sm_quickview.utils.colors import get_type_color
+
+                dim_types = sorted(
+                    set(str(var.dimensions) for var in self.source.varmeta.values())
+                )
+                self.state.variable_types = [
+                    {"name": t, "color": get_type_color(i)}
+                    for i, t in enumerate(dim_types)
                 ]
 
                 # Update Layer/Time values and ui layout
                 n_cols = 0
                 available_tracks = []
-                for name in ["midpoints", "interfaces", "timestamps"]:
-                    values = getattr(self.source, name)
-                    self.state[name] = values
-
-                    if len(values) > 1:
+                for name, dim in self.source.dimmeta.items():
+                    values = dim.data
+                    # Convert to list for JSON serialization
+                    self.state[name] = (
+                        values.tolist()
+                        if hasattr(values, "tolist")
+                        else list(values)
+                        if values is not None
+                        else []
+                    )
+                    if values is not None and len(values) > 1:
                         n_cols += 1
-                        available_tracks.append(constants.TRACK_ENTRIES[name])
-
+                        available_tracks.append({"title": name, "value": name})
                 self.state.toolbar_slider_cols = 12 / n_cols if n_cols else 12
                 self.state.animation_tracks = available_tracks
                 self.state.animation_track = (
@@ -400,6 +411,20 @@ class EAMApp(TrameApp):
                     if available_tracks
                     else None
                 )
+
+                from functools import partial
+
+                # Initialize dynamic index variables for each dimension
+                for track in available_tracks:
+                    dim_name = track["value"]
+                    index_var = f"{dim_name}_idx"
+                    if "time" in index_var:
+                        self.state[index_var] = 50
+                    else:
+                        self.state[index_var] = 0
+                    self.state.change(index_var)(
+                        partial(self._on_slicing_change, dim_name, index_var)
+                    )
 
     @controller.set("file_selection_cancel")
     def data_loading_hide(self):
@@ -414,11 +439,10 @@ class EAMApp(TrameApp):
         """Called at 'Load Variables' button click"""
         vars_to_show = self.selected_variables
 
-        self.source.LoadVariables(
-            vars_to_show["s"],  # surfaces
-            vars_to_show["m"],  # midpoints
-            vars_to_show["i"],  # interfaces
-        )
+        # Flatten the list of lists
+        flattened_vars = [var for var_list in vars_to_show.values() for var in var_list]
+
+        self.source.LoadVariables(flattened_vars)
 
         # Trigger source update + compute avg
         with self.state:
@@ -455,30 +479,42 @@ class EAMApp(TrameApp):
                 await asyncio.sleep(0.1)
                 self.view_manager.reset_camera()
 
-    @change("active_tools")
+    @change("active_tools", "animation_tracks")
     def _on_toolbar_change(self, active_tools, **_):
         top_padding = 0
         for name in active_tools:
-            top_padding += toolbars.SIZES.get(name, 0)
+            if name == "select-slice-time":
+                track_count = len(self.state.animation_tracks or [])
+                rows_needed = max(1, (track_count + 2) // 3)  # 3 sliders per row
+                top_padding += 70 * rows_needed
+            else:
+                top_padding += toolbars.SIZES.get(name, 0)
 
         self.state.top_padding = top_padding
 
+    def _on_slicing_change(self, var, ind_var, **_):
+        self.source.UpdateSlicing(var, self.state[ind_var])
+        self.source.UpdatePipeline()
+
+        self.view_manager.update_color_range()
+        self.view_manager.render()
+
+        # Update avg computation
+        # Get area variable to calculate weighted average
+        data = self.source.views["atmosphere_data"]
+        self.state.fields_avgs = compute.extract_avgs(
+            data, self.selected_variable_names
+        )
+
     @change(
         "variables_loaded",
-        "time_idx",
-        "midpoint_idx",
-        "interface_idx",
         "crop_longitude",
         "crop_latitude",
         "projection",
     )
-    def _on_time_change(
+    def _on_downstream_change(
         self,
         variables_loaded,
-        time_idx,
-        timestamps,
-        midpoint_idx,
-        interface_idx,
         crop_longitude,
         crop_latitude,
         projection,
@@ -487,12 +523,9 @@ class EAMApp(TrameApp):
         if not variables_loaded:
             return
 
-        time_value = timestamps[time_idx] if len(timestamps) else 0.0
-        self.source.UpdateLev(midpoint_idx, interface_idx)
         self.source.ApplyClipping(crop_longitude, crop_latitude)
         self.source.UpdateProjection(projection[0])
-        self.source.UpdateTimeStep(time_idx)
-        self.source.UpdatePipeline(time_value)
+        self.source.UpdatePipeline()
 
         self.view_manager.update_color_range()
         self.view_manager.render()

@@ -1,5 +1,5 @@
 import fnmatch
-import numpy as np
+import json
 import os
 
 
@@ -11,9 +11,9 @@ from paraview.simple import (
     LegacyVTKReader,
 )
 
-from paraview import servermanager as sm
-from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from vtkmodules.vtkCommonCore import vtkLogger
+
+from collections import defaultdict
 
 
 # Define a VTK error observer
@@ -39,17 +39,10 @@ class EAMVisSource:
         self.data_file = None
         self.conn_file = None
 
-        self.midpoints = []
-        self.interfaces = []
-
         # List of all available variables
-        self.surface_vars = []
-        self.midpoint_vars = []
-        self.interface_vars = []
-        # List of selected variables
-        self.surface_vars_sel = []
-        self.interface_vars_sel = []
-        self.midpoint_vars_sel = []
+        self.varmeta = None
+        self.dimmeta = None
+        self.slicing = defaultdict(int)
 
         self.data = None
         self.globe = None
@@ -76,34 +69,6 @@ class EAMVisSource:
             vtkLogger.SetStderrVerbosity(vtkLogger.VERBOSITY_OFF)
         except Exception as e:
             print("Error loading plugin :", e)
-
-    def UpdateLev(self, lev, ilev):
-        if not self.valid:
-            return
-
-        if self.data is None:
-            return
-
-        # Handle NaN, None, or invalid values
-        try:
-            if lev is None or (isinstance(lev, float) and np.isnan(lev)):
-                lev_idx = 0
-            else:
-                lev_idx = int(lev)
-        except (ValueError, TypeError):
-            lev_idx = 0
-
-        try:
-            if ilev is None or (isinstance(ilev, float) and np.isnan(ilev)):
-                ilev_idx = 0
-            else:
-                ilev_idx = int(ilev)
-        except (ValueError, TypeError):
-            ilev_idx = 0
-
-        if self.data.MiddleLayer != lev_idx or self.data.InterfaceLayer != ilev_idx:
-            self.data.MiddleLayer = lev_idx
-            self.data.InterfaceLayer = ilev_idx
 
     def ApplyClipping(self, cliplong, cliplat):
         if not self.valid:
@@ -175,7 +140,16 @@ class EAMVisSource:
         self.views["continents"] = OutputPort(cont_proj, 0)
         self.views["grid_lines"] = OutputPort(grid_proj, 0)
 
-    def Update(self, data_file, conn_file, midpoint=0, interface=0, force_reload=False):
+    def UpdateSlicing(self, dimension, slice):
+        if self.slicing.get(dimension) == slice:
+            return
+        else:
+            self.slicing[dimension] = slice
+            if self.data is not None:
+                x = json.dumps(self.slicing)
+                self.data.Slicing = x
+
+    def Update(self, data_file, conn_file, force_reload=False):
         # Check if we need to reload
         if (
             not force_reload
@@ -188,17 +162,21 @@ class EAMVisSource:
         self.conn_file = conn_file
 
         if self.data is None:
-            data = EAMSliceDataReader(
+            data = EAMSliceDataReader(  # noqa: F821
                 registrationName="AtmosReader",
                 ConnectivityFile=conn_file,
                 DataFile=data_file,
             )
-            data.MiddleLayer = midpoint
-            data.InterfaceLayer = interface
             self.data = data
             vtk_obj = data.GetClientSideObject()
             vtk_obj.AddObserver("ErrorEvent", self.observer)
             vtk_obj.GetExecutive().AddObserver("ErrorEvent", self.observer)
+            self.varmeta = vtk_obj.GetVariables()
+            self.dimmeta = vtk_obj.GetDimensions()
+
+            for dim in self.dimmeta.keys():
+                self.slicing[dim] = 0
+
             self.observer.clear()
         else:
             self.data.DataFile = data_file
@@ -215,19 +193,6 @@ class EAMVisSource:
                     "and are compatible"
                 )
 
-            data_wrapped = dsa.WrapDataObject(sm.Fetch(self.data))
-            self.midpoints = data_wrapped.FieldData["lev"].tolist()
-            self.interfaces = data_wrapped.FieldData["ilev"].tolist()
-
-            self.surface_vars = list(
-                np.asarray(self.data.GetProperty("SurfaceVariablesInfo"))[::2]
-            )
-            self.midpoint_vars = list(
-                np.asarray(self.data.GetProperty("MidpointVariablesInfo"))[::2]
-            )
-            self.interface_vars = list(
-                np.asarray(self.data.GetProperty("InterfaceVariablesInfo"))[::2]
-            )
             # Ensure TimestepValues is always a list
             timestep_values = self.data.TimestepValues
             if isinstance(timestep_values, (list, tuple)):
@@ -244,7 +209,7 @@ class EAMVisSource:
                 )
 
             # Step 1: Extract and transform atmospheric data
-            atmos_extract = EAMTransformAndExtract(
+            atmos_extract = EAMTransformAndExtract(  # noqa: F821
                 registrationName="AtmosExtract", Input=self.data
             )
             atmos_extract.LongitudeRange = [-180.0, 180.0]
@@ -253,7 +218,7 @@ class EAMVisSource:
             self.extents = atmos_extract.GetDataInformation().GetBounds()
 
             # Step 2: Apply map projection to atmospheric data
-            atmos_proj = EAMProject(
+            atmos_proj = EAMProject(  # noqa: F821
                 registrationName="AtmosProj", Input=OutputPort(atmos_extract, 0)
             )
             atmos_proj.Projection = self.projection
@@ -278,14 +243,14 @@ class EAMVisSource:
                 self.globe = cont_contour
 
             # Step 4: Extract and transform continent data
-            cont_extract = EAMTransformAndExtract(
+            cont_extract = EAMTransformAndExtract(  # noqa: F821
                 registrationName="ContExtract", Input=self.globe
             )
             cont_extract.LongitudeRange = [-180.0, 180.0]
             cont_extract.LatitudeRange = [-90.0, 90.0]
 
             # Step 5: Apply map projection to continents
-            cont_proj = EAMProject(
+            cont_proj = EAMProject(  # noqa: F821
                 registrationName="ContProj", Input=OutputPort(cont_extract, 0)
             )
             cont_proj.Projection = self.projection
@@ -293,11 +258,11 @@ class EAMVisSource:
             cont_proj.UpdatePipeline()
 
             # Step 6: Generate lat/lon grid lines
-            grid_gen = EAMGridLines(registrationName="GridGen")
+            grid_gen = EAMGridLines(registrationName="GridGen")  # noqa: F821
             grid_gen.UpdatePipeline()
 
             # Step 7: Apply map projection to grid lines
-            grid_proj = EAMProject(
+            grid_proj = EAMProject(  # noqa: F821
                 registrationName="GridProj", Input=OutputPort(grid_gen, 0)
             )
             grid_proj.Projection = self.projection
@@ -319,15 +284,10 @@ class EAMVisSource:
 
         return self.valid
 
-    def LoadVariables(self, surf, mid, intf):
+    def LoadVariables(self, vars):
         if not self.valid:
             return
-        self.data.SurfaceVariables = surf
-        self.data.MidpointVariables = mid
-        self.data.InterfaceVariables = intf
-        self.vars["surface"] = surf
-        self.vars["midpoint"] = mid
-        self.vars["interface"] = intf
+        self.data.Variables = vars
 
 
 if __name__ == "__main__":
