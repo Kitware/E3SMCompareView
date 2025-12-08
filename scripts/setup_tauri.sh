@@ -20,7 +20,7 @@ python -m PyInstaller --clean --noconfirm \
         --collect-all e3sm_quickview \
         --hidden-import pkgutil \
         --add-binary="$(which pvpython):."  \
-        src/e3sm_quickview/app2.py
+        src/e3sm_quickview/app.py
 
 # Generate trame www + quickview
 python -m trame.tools.www --output ./src-tauri/www
