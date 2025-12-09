@@ -5,6 +5,8 @@ set -x
 
 pip install .
 
+PVPYTHON_PATH=$(which pvpython.exe) || PVPYTHON_PATH=$(which pvpython)
+
 python -m PyInstaller --clean --noconfirm \
         --distpath src-tauri \
         --name server --hidden-import pkgutil \
@@ -19,7 +21,7 @@ python -m PyInstaller --clean --noconfirm \
         --collect-all paraview \
         --collect-all e3sm_quickview \
         --hidden-import pkgutil \
-        --add-binary="$(which pvpython):."  \
+        --add-binary="$PVPYTHON_PATH:."  \
         src/e3sm_quickview/app.py
 
 # Generate trame www + quickview
