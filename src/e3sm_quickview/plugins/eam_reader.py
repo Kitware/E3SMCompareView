@@ -9,6 +9,7 @@ from paraview import print_error, print_warning
 try:
     import netCDF4
     import numpy as np
+    import json
 
     _has_deps = True
 except ImportError as ie:
@@ -230,9 +231,6 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
         self._DataFileName = None
         self._ConnFileName = None
         self._dirty = False
-        self._surface_update = True
-        self._midpoint_update = True
-        self._interface_update = True
 
         # Variables for dimension sliders
         self._time = 0
@@ -396,23 +394,18 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
             self._cached_area[mask] = np.nan
         return self._cached_area
 
-    def _load_variable(self, vardata, varmeta, timeInd):
+    def _load_variable(self, vardata, varmeta):
         """Load variable data with dimension-based slicing."""
         try:
             # Build slice tuple based on variable's dimensions and user-selected slices
             slice_tuple = []
             for dim in varmeta.dimensions:
                 if dim == self._data_horizontal_dim:
-                    continue
-                # elif dim == "time":
-                #    # Use timeInd for time dimension
-                #    slice_tuple.append(timeInd)
-                elif hasattr(self, "_slices") and dim in self._slices:
-                    # Use user-specified slice for this dimension
-                    slice_tuple.append(self._slices[dim])
+                    slice_tuple.append(slice(None))
                 else:
                     # Use all data for unspecified dimensions
-                    slice_tuple.append(slice(None))
+                    slice_tuple.append(self._slices.get(dim, 0))
+
             # Get data with proper slicing
             data = vardata[varmeta.name][tuple(slice_tuple)].data.flatten()
             data = np.where(data == varmeta.fillval, np.nan, data)
@@ -511,7 +504,7 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
             if self._data_horizontal_dim not in dims:
                 continue
             varmeta = VarMeta(name, info, self._data_horizontal_dim)
-            if len(dims) == 1 and "area" in name:
+            if len(dims) == 1 and "area" in name.lower():
                 self._areavar = varmeta
             if len(dims) > 1:
                 all_dimensions.update(dims)
@@ -588,20 +581,10 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
 
     def SetSlicing(self, slice_str):
         # Parse JSON string containing dimension slices and update self._slices
-        # Initialize _slices if not already done
-        if not hasattr(self, "_slices"):
-            self._slices = {}
-
-        # Initialize dimensions if not already done
-        if not hasattr(self, "_dimensions"):
-            self._dimensions = {}
 
         if slice_str and slice_str.strip():  # Check for non-empty string
             try:
-                import json
-
                 slice_dict = json.loads(slice_str)
-
                 # Validate and update slices for provided dimensions
                 invalid_slices = []
                 for dim, slice_val in slice_dict.items():
@@ -713,16 +696,6 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
             print_error("Required Python module 'netCDF4' or 'numpy' missing!")
             return 0
 
-        # Getting the correct time index
-        executive = self.GetExecutive()
-        from_port = request.Get(executive.FROM_OUTPUT_PORT())
-        timeInd = self.get_time_index(outInfo, executive, from_port)
-        if self._time != timeInd:
-            self._time = timeInd
-            self._surface_update = True
-            self._midpoint_update = True
-            self._interface_update = True
-
         meshdata = self._get_mesh_dataset()
         vardata = self._get_var_dataset()
 
@@ -766,9 +739,8 @@ class EAMSliceSource(VTKPythonAlgorithmBase):
             if self._variable_selection.ArrayIsEnabled(name):
                 if output_mesh.CellData.HasArray(name):
                     to_remove.remove(name)
-                if not output_mesh.CellData.HasArray(name) or self._surface_update:
-                    data = self._load_variable(vardata, varmeta, timeInd)
-                    output_mesh.CellData.append(data, name)
+                data = self._load_variable(vardata, varmeta)
+                output_mesh.CellData.append(data, name)
 
         area_var_name = "area"
         if self._areavar and not output_mesh.CellData.HasArray(area_var_name):
