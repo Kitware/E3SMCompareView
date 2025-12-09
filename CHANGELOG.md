@@ -2,6 +2,42 @@
 
 <!-- version list -->
 
+## v1.2.0 (2025-12-09)
+
+### Bug Fixes
+
+- Add/fix dynamic dimensions sliders
+  ([`f496510`](https://github.com/Kitware/QuickView/commit/f4965103aa0bd3a9376255f00cc94a988e207986))
+
+- Fixing errors while variable groupings
+  ([`3fbd8fc`](https://github.com/Kitware/QuickView/commit/3fbd8fccba4cbc8185dacf7ac0f56af671afccac))
+
+- Fixing slicing based on arbitrary dimensions
+  ([`c6242fb`](https://github.com/Kitware/QuickView/commit/c6242fbd0954e0a6303eaaa1552722a3790023e4))
+
+- Incorrect packaging script resulting in release failures
+  ([`6db0eec`](https://github.com/Kitware/QuickView/commit/6db0eecbe322ad651bd92e12448023bc87f0d4fe))
+
+- Remove unnecessary print statements
+  ([`87c3d56`](https://github.com/Kitware/QuickView/commit/87c3d5685b9f5d1e7c9fe2c8b32131cdd85621b2))
+
+### Chores
+
+- Removing unnecessary files from UI refactor
+  ([`787f288`](https://github.com/Kitware/QuickView/commit/787f2883bb0ef6006f2d0d512eb93ca80fdcb026))
+
+- Removing vue2(old) CI scripts
+  ([`00ead1b`](https://github.com/Kitware/QuickView/commit/00ead1bbf5aa6a9fb6d6b9410392d06b194fc465))
+
+### Features
+
+- Adding dimension matching for horizontal axis
+  ([`4512933`](https://github.com/Kitware/QuickView/commit/45129338d52a9ee2778d7015e238432e623311d8))
+
+- Adding partial changes for supporing general ESM reader
+  ([`552fbd9`](https://github.com/Kitware/QuickView/commit/552fbd940d0cc586666300a3ca9a2d2d1cf8e368))
+
+
 ## v1.1.1 (2025-10-27)
 
 ### Bug Fixes
