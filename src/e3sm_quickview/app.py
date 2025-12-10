@@ -346,9 +346,14 @@ class EAMApp(TrameApp):
         self.state.time_idx = 0
         self.state.timestamps = []
 
+        self.state.data_files = [simulation, simulation, simulation]
+        self.state.control_data = ""
+        self.state.test_data = []
+
         await asyncio.sleep(0.1)
         self.source.Update(
-            data_file=simulation,
+            ctrl_file=simulation,
+            test_file=simulation,
             conn_file=connectivity,
         )
 
@@ -438,6 +443,7 @@ class EAMApp(TrameApp):
     async def _data_load_variables(self):
         """Called at 'Load Variables' button click"""
         vars_to_show = self.selected_variables
+        print("Loading variables:", vars_to_show)
 
         # Flatten the list of lists
         flattened_vars = [var for var_list in vars_to_show.values() for var in var_list]

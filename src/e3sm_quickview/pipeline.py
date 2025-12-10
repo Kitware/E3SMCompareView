@@ -36,7 +36,8 @@ class EAMVisSource:
         # and the data is available
         self.valid = False
 
-        self.data_file = None
+        self.ctrl_file = None
+        self.test_file = None
         self.conn_file = None
 
         # List of all available variables
@@ -44,7 +45,8 @@ class EAMVisSource:
         self.dimmeta = None
         self.slicing = defaultdict(int)
 
-        self.data = None
+        self.ctrl_data = None
+        self.test_data = None
         self.globe = None
         self.projection = "Cyl. Equidistant"
         self.timestamps = []
@@ -149,26 +151,41 @@ class EAMVisSource:
                 x = json.dumps(self.slicing)
                 self.data.Slicing = x
 
-    def Update(self, data_file, conn_file, force_reload=False):
+    def Update(self, ctrl_file, test_file, conn_file, force_reload=False):
         # Check if we need to reload
         if (
             not force_reload
-            and self.data_file == data_file
+            and self.ctrl_file == ctrl_file
+            and self.test_file == test_file
             and self.conn_file == conn_file
         ):
             return self.valid
 
-        self.data_file = data_file
+        data_file1 = '/home/local/KHQ/will.dunklin/Desktop/work/QuickView/data/hui/v2_ndg_cdnc_ssat_diag_simple_pd.eam.h0.2011-01.nc'
+        data_file2 = '/home/local/KHQ/will.dunklin/Desktop/work/QuickView/data/hui/v2_ndg_cdnc_ssat_diag_simple_pi.eam.h0.2011-01.nc'
+        self.ctrl_file = data_file1 #ctrl_file
+        self.test_file = data_file2 #test_file
         self.conn_file = conn_file
 
-        if self.data is None:
-            data = EAMSliceDataReader(  # noqa: F821
+        if self.ctrl_data is None or self.test_data is None:
+            ctrl_data = EAMSliceDataReader(
                 registrationName="AtmosReader",
-                ConnectivityFile=conn_file,
-                DataFile=data_file,
+                ConnectivityFile=self.conn_file,
+                DataFile=self.ctrl_file,
             )
-            self.data = data
-            vtk_obj = data.GetClientSideObject()
+            self.ctrl_data = ctrl_data
+            vtk_obj = ctrl_data.GetClientSideObject()
+            vtk_obj.AddObserver("ErrorEvent", self.observer)
+            vtk_obj.GetExecutive().AddObserver("ErrorEvent", self.observer)
+            # self.observer.clear()
+
+            test_data = EAMSliceDataReader(
+                registrationName="AtmosReader2",
+                ConnectivityFile=self.conn_file,
+                DataFile=self.test_file,
+            )
+            self.test_data = test_data
+            vtk_obj = test_data.GetClientSideObject()
             vtk_obj.AddObserver("ErrorEvent", self.observer)
             vtk_obj.GetExecutive().AddObserver("ErrorEvent", self.observer)
             self.varmeta = vtk_obj.GetVariables()
@@ -178,14 +195,21 @@ class EAMVisSource:
                 self.slicing[dim] = 0
 
             self.observer.clear()
+
         else:
-            self.data.DataFile = data_file
-            self.data.ConnectivityFile = conn_file
+            self.ctrl_data.DataFile = self.ctrl_file
+            self.ctrl_data.ConnectivityFile = self.conn_file
+            # self.observer.clear()
+
+            self.test_data.DataFile = self.test_file
+            self.test_data.ConnectivityFile = self.conn_file
             self.observer.clear()
+
 
         try:
             # Update pipeline and force view refresh
-            self.data.UpdatePipeline(time=0.0)
+            self.ctrl_data.UpdatePipeline(time=0.0)
+            self.test_data.UpdatePipeline(time=0.0)
             if self.observer.error_occurred:
                 raise RuntimeError(
                     "Error occurred in UpdatePipeline. "
@@ -194,7 +218,7 @@ class EAMVisSource:
                 )
 
             # Ensure TimestepValues is always a list
-            timestep_values = self.data.TimestepValues
+            timestep_values = self.ctrl_data.TimestepValues
             if isinstance(timestep_values, (list, tuple)):
                 self.timestamps = list(timestep_values)
             elif hasattr(timestep_values, "__iter__") and not isinstance(
@@ -208,9 +232,24 @@ class EAMVisSource:
                     [timestep_values] if timestep_values is not None else []
                 )
 
+            prog_filter = ProgrammableFilter(registrationName='ProgrammableFilter1', Input=[self.ctrl_data, self.test_data])
+            prog_filter.Script = """
+ctrl = inputs[0].CellData["AEROD_v"]
+test = inputs[1].CellData["AEROD_v"]
+
+diff = test - ctrl
+
+output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.compute.extract_avgs
+output.CellData.append(diff, 'AEROD_v')
+"""
+            prog_filter.RequestInformationScript = ''
+            prog_filter.RequestUpdateExtentScript = ''
+            prog_filter.PythonPath = ''
+
+
             # Step 1: Extract and transform atmospheric data
             atmos_extract = EAMTransformAndExtract(  # noqa: F821
-                registrationName="AtmosExtract", Input=self.data
+                registrationName="AtmosExtract", Input=prog_filter
             )
             atmos_extract.LongitudeRange = [-180.0, 180.0]
             atmos_extract.LatitudeRange = [-90.0, 90.0]
@@ -287,7 +326,8 @@ class EAMVisSource:
     def LoadVariables(self, vars):
         if not self.valid:
             return
-        self.data.Variables = vars
+        self.ctrl_data.Variables = vars
+        self.test_data.Variables = vars
 
 
 if __name__ == "__main__":
