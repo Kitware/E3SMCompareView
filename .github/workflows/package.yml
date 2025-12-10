@@ -1,7 +1,7 @@
 name: "Package"
 
 on:
-  # workflow_dispatch:  # manually triggered
+  workflow_dispatch:  # manually triggered
   workflow_run:
     workflows: ["Release"]
     types: [completed]
@@ -21,8 +21,8 @@ jobs:
             args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
             args: ''
-          # - platform: 'windows-latest'
-          #   args: ''
+          - platform: 'windows-latest'
+            args: ''
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +36,7 @@ jobs:
           file src/e3sm_quickview/data/globe.vtk
           file src/e3sm_quickview/data/connectivity.nc
           echo "LFS file check complete"
+        shell: bash -l {0}
 
       - name: Get version for tagging
         id: get_version

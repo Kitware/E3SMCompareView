@@ -30,6 +30,7 @@ dependencies = [
     "trame-dataclass>=1.2",
     "trame-components",
     "trame-tauri>=0.6.2",
+    "Pillow",
 ]
 
 [project.optional-dependencies]
