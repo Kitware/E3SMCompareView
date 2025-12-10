@@ -232,15 +232,24 @@ class EAMVisSource:
                     [timestep_values] if timestep_values is not None else []
                 )
 
-            prog_filter = ProgrammableFilter(registrationName='ProgrammableFilter1', Input=[self.ctrl_data, self.test_data])
+            prog_filter = ProgrammableFilter(registrationName='ProgrammableFilter', Input=[self.ctrl_data, self.test_data])
             prog_filter.Script = """
-ctrl = inputs[0].CellData["AEROD_v"]
-test = inputs[1].CellData["AEROD_v"]
+vars = ['AEROD_v', 'AODABS']
+for var in vars:
+    ctrl = inputs[0].CellData[f"{var}"]
+    test = inputs[1].CellData[f"{var}"]
 
-diff = test - ctrl
+    diff = test - ctrl
+    comp1 = diff / ctrl
+    comp2 = (2 * diff) / (test + ctrl)
+
+    output.CellData.append(ctrl, f'{var}')
+    output.CellData.append(test, f'{var}_test')
+    output.CellData.append(diff, f'{var}_diff')
+    output.CellData.append(comp1, f'{var}_comp1')
+    output.CellData.append(comp2, f'{var}_comp2')
 
 output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.compute.extract_avgs
-output.CellData.append(diff, 'AEROD_v')
 """
             prog_filter.RequestInformationScript = ''
             prog_filter.RequestUpdateExtentScript = ''

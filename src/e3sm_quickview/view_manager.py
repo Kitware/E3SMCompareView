@@ -424,44 +424,49 @@ class ViewManager(TrameComponent):
                     for var_type in variables.keys():
                         var_names = variables[var_type]
                         total_size = len(var_names)
+                        print(total_size, var_names, var_type)
 
                         if total_size == 0:
                             continue
 
-                        # Look up color from variable_types to match chip colors
-                        border_color = type_to_color.get(str(var_type), "primary")
-                        with v3.VAlert(
-                            border="start",
-                            classes="pr-1 py-1 pl-3 mb-1",
-                            variant="flat",
-                            border_color=border_color,
-                        ):
-                            with v3.VRow(dense=True):
-                                for name in var_names:
-                                    view = self.get_view(name, var_type)
-                                    view.config.swap_group = sorted(
-                                        [n for n in var_names if n != name]
-                                    )
-                                    with view.config.provide_as("config"):
-                                        v3.VCol(
-                                            v_if="config.break_row",
-                                            cols=12,
-                                            classes="pa-0",
-                                            style=("`order: ${config.order};`",),
+                        for var_name in var_names:
+                            var_comps = [var_name, f"{var_name}_test", f"{var_name}_diff", f"{var_name}_comp1", f"{var_name}_comp2"]
+                            # Look up color from variable_types to match chip colors
+                            border_color = type_to_color.get(str(var_type), "primary")
+                            with v3.VAlert(
+                                border="start",
+                                classes="pr-1 py-1 pl-3 mb-1",
+                                variant="flat",
+                                border_color=border_color,
+                            ):
+                                with v3.VRow(dense=True):
+                                    for name in var_comps:
+                                        print("Creating view for", name)
+                                        view = self.get_view(name, var_type)
+                                        view.config.swap_group = sorted(
+                                            [n for n in var_comps if n != name]
                                         )
-                                        # For flow handling
-                                        with v3.Template(v_if="!config.size"):
+                                        with view.config.provide_as("config"):
                                             v3.VCol(
-                                                v_for="i in config.offset",
-                                                key="i",
-                                                style=("{ order: config.order }",),
+                                                v_if="config.break_row",
+                                                cols=12,
+                                                classes="pa-0",
+                                                style=("`order: ${config.order};`",),
                                             )
-                                        with v3.VCol(
-                                            offset=("config.offset * config.size",),
-                                            cols=("config.size",),
-                                            style=("`order: ${config.order};`",),
-                                        ):
-                                            client.ServerTemplate(name=view.name)
+                                            # For flow handling
+                                            with v3.Template(v_if="!config.size"):
+                                                v3.VCol(
+                                                    v_for="i in config.offset",
+                                                    key="i",
+                                                    style=("{ order: config.order }",),
+                                                )
+                                            with v3.VCol(
+                                                offset=("config.offset * config.size",),
+                                                cols=("2",),
+                                                # cols=("config.size",),
+                                                style=("`order: ${config.order};`",),
+                                            ):
+                                                client.ServerTemplate(name=view.name)
             else:
                 all_names = [name for names in variables.values() for name in names]
                 with v3.VRow(dense=True, classes="pa-2"):
