@@ -151,7 +151,8 @@ class EAMVisSource:
                 x = json.dumps(self.slicing)
                 self.data.Slicing = x
 
-    def Update(self, ctrl_file, test_file, conn_file, force_reload=False):
+    def Update(self, ctrl_file, test_file, conn_file, variables=['AEROD_v', 'AODABS'], force_reload=False):
+    # def Update(self, ctrl_file, test_file, conn_file, variables=[], force_reload=False):
         # Check if we need to reload
         if (
             not force_reload
@@ -160,6 +161,8 @@ class EAMVisSource:
             and self.conn_file == conn_file
         ):
             return self.valid
+
+        # TODO: handle ctrl_file/test_file/conn_file being None
 
         data_file1 = '/home/local/KHQ/will.dunklin/Desktop/work/QuickView/data/hui/v2_ndg_cdnc_ssat_diag_simple_pd.eam.h0.2011-01.nc'
         data_file2 = '/home/local/KHQ/will.dunklin/Desktop/work/QuickView/data/hui/v2_ndg_cdnc_ssat_diag_simple_pi.eam.h0.2011-01.nc'
@@ -177,6 +180,7 @@ class EAMVisSource:
             vtk_obj = ctrl_data.GetClientSideObject()
             vtk_obj.AddObserver("ErrorEvent", self.observer)
             vtk_obj.GetExecutive().AddObserver("ErrorEvent", self.observer)
+            ctrl_varmeta = vtk_obj.GetVariables()
             # self.observer.clear()
 
             test_data = EAMSliceDataReader(
@@ -188,8 +192,14 @@ class EAMVisSource:
             vtk_obj = test_data.GetClientSideObject()
             vtk_obj.AddObserver("ErrorEvent", self.observer)
             vtk_obj.GetExecutive().AddObserver("ErrorEvent", self.observer)
-            self.varmeta = vtk_obj.GetVariables()
+            test_varmeta = vtk_obj.GetVariables()
             self.dimmeta = vtk_obj.GetDimensions()
+            self.varmeta = {
+                key: val
+                for key, val in ctrl_varmeta.items()
+                if key in test_varmeta
+            }
+
 
             for dim in self.dimmeta.keys():
                 self.slicing[dim] = 0
@@ -232,9 +242,10 @@ class EAMVisSource:
                     [timestep_values] if timestep_values is not None else []
                 )
 
-            prog_filter = ProgrammableFilter(registrationName='ProgrammableFilter', Input=[self.ctrl_data, self.test_data])
-            prog_filter.Script = """
-vars = ['AEROD_v', 'AODABS']
+            print("Data pre-script", self.ctrl_data, self.test_data)
+
+            script = f"vars = {variables}\n"
+            script += """
 for var in vars:
     ctrl = inputs[0].CellData[f"{var}"]
     test = inputs[1].CellData[f"{var}"]
@@ -244,6 +255,7 @@ for var in vars:
     comp2 = (2 * diff) / (test + ctrl)
 
     output.CellData.append(ctrl, f'{var}')
+    output.CellData.append(ctrl, f'{var}_ctrl')
     output.CellData.append(test, f'{var}_test')
     output.CellData.append(diff, f'{var}_diff')
     output.CellData.append(comp1, f'{var}_comp1')
@@ -251,6 +263,9 @@ for var in vars:
 
 output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.compute.extract_avgs
 """
+            print("ProgrammableFilter script:\n", script, end='')
+            prog_filter = ProgrammableFilter(registrationName='ProgrammableFilter', Input=[self.ctrl_data, self.test_data])
+            prog_filter.Script = script
             prog_filter.RequestInformationScript = ''
             prog_filter.RequestUpdateExtentScript = ''
             prog_filter.PythonPath = ''

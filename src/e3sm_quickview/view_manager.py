@@ -430,7 +430,7 @@ class ViewManager(TrameComponent):
                             continue
 
                         for var_name in var_names:
-                            var_comps = [var_name, f"{var_name}_test", f"{var_name}_diff", f"{var_name}_comp1", f"{var_name}_comp2"]
+                            var_comps = [f"{var_name}_ctrl", f"{var_name}_test", f"{var_name}_diff", f"{var_name}_comp1", f"{var_name}_comp2"]
                             # Look up color from variable_types to match chip colors
                             border_color = type_to_color.get(str(var_type), "primary")
                             with v3.VAlert(
