@@ -448,6 +448,13 @@ class EAMApp(TrameApp):
         # Flatten the list of lists
         flattened_vars = [var for var_list in vars_to_show.values() for var in var_list]
 
+        self.source.LoadVariables(flattened_vars)
+
+        # Trigger source update + compute avg
+        with self.state:
+            self.state.variables_loaded = True
+        await self.server.network_completion
+
         await asyncio.sleep(0.1)
         self.source.Update(
             ctrl_file=self.source.ctrl_file,
@@ -456,13 +463,6 @@ class EAMApp(TrameApp):
             variables=flattened_vars,
             force_reload=True,
         )
-
-        self.source.LoadVariables(flattened_vars)
-
-        # Trigger source update + compute avg
-        with self.state:
-            self.state.variables_loaded = True
-        await self.server.network_completion
 
         # Update views in layout
         with self.state:
