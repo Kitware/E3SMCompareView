@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v1.2.1 (2025-12-11)
+
+### Bug Fixes
+
+- Fixing linux binary launch issues
+  ([`1a6fb0d`](https://github.com/Kitware/QuickView/commit/1a6fb0d22b34bab3b7aab2275e51b152bd3536eb))
+
+- Slicing axes and averaging fixes
+  ([`2edad77`](https://github.com/Kitware/QuickView/commit/2edad773500791bd803fd4cc8a97cbb3f857a30b))
+
+### Continuous Integration
+
+- Automatically generate windows packages
+  ([`1cfdb14`](https://github.com/Kitware/QuickView/commit/1cfdb14e7552413ef4e041911696fdc3f24816e9))
+
+
 ## v1.2.0 (2025-12-09)
 
 ### Bug Fixes
