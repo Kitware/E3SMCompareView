@@ -39,7 +39,12 @@ def extract_avgs(pv_data, array_names):
     area_array = vtk_data.GetCellData().GetArray("area")
     for name in array_names:
         vtk_array = vtk_data.GetCellData().GetArray(name)
-        avg_value = calculate_weighted_average(vtk_array, area_array)
+        if vtk_array is None:
+            results[name] = np.nan
+            continue
+        if area_array:
+            avg_value = calculate_weighted_average(vtk_array, area_array)
+        else:
+            avg_value = float(np.nanmean(np.array(vtk_array)))
         results[name] = avg_value
-
     return results
