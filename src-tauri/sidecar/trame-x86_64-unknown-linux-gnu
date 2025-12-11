@@ -1,5 +1,5 @@
 #!/bin/bash
 rootdir=`dirname $0`
-rootdir=`cd $rootdir && cd ../lib/quickview && pwd`
+rootdir=`cd $rootdir && pwd`
 
 $rootdir/server/server $@
