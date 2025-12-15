@@ -90,6 +90,29 @@ class FieldSelection(v3.VNavigationDrawer):
                     )
 
                     v3.VSpacer()
+
+                # Simulation file selection dropdowns
+                with v3.VRow(classes="mx-2 my-2", dense=True, v_if="pv_files_data_simulation_files.length > 1"):
+                    with v3.VCol(cols=6):
+                        v3.VSelect(
+                            v_model=("ctrl_simulation_file", "pv_files_data_simulation_files[0]"),
+                            items=("pv_files_data_simulation_files", []),
+                            label="Control Simulation",
+                            density="compact",
+                            variant="outlined",
+                            hide_details=True,
+                        )
+                    with v3.VCol(cols=6):
+                        v3.VSelect(
+                            v_model=("test_simulation_file", "pv_files_data_simulation_files[1] || pv_files_data_simulation_files[0]"),
+                            items=("pv_files_data_simulation_files", []),
+                            label="Test Simulation",
+                            density="compact",
+                            variant="outlined",
+                            hide_details=True,
+                        )
+
+                with v3.VCardActions(classes="px-2"):
                     v3.VBtn(
                         classes="text-none",
                         color="primary",
@@ -98,6 +121,7 @@ class FieldSelection(v3.VNavigationDrawer):
                             "`Load ${variables_selected.length} variable${variables_selected.length > 1 ? 's' :''}`",
                         ),
                         variant="flat",
+                        block=True,
                         disabled=(
                             "variables_selected.length === 0 || variables_loaded",
                         ),
@@ -137,4 +161,8 @@ class FieldSelection(v3.VNavigationDrawer):
 
     @change("variables_selected")
     def _on_dirty_variable_selection(self, **_):
+        self.state.variables_loaded = False
+
+    @change("ctrl_simulation_file", "test_simulation_file")
+    def _on_dirty_simulation_selection(self, **_):
         self.state.variables_loaded = False

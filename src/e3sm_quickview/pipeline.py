@@ -151,8 +151,7 @@ class EAMVisSource:
                 x = json.dumps(self.slicing)
                 self.data.Slicing = x
 
-    def Update(self, ctrl_file, test_file, conn_file, variables=['AEROD_v', 'AODABS'], force_reload=False):
-    # def Update(self, ctrl_file, test_file, conn_file, variables=[], force_reload=False):
+    def Update(self, ctrl_file, test_file, conn_file, variables=[], force_reload=False):
         # Check if we need to reload
         if (
             not force_reload
@@ -162,12 +161,9 @@ class EAMVisSource:
         ):
             return self.valid
 
-        # TODO: handle ctrl_file/test_file/conn_file being None
-
-        data_file1 = '/home/local/KHQ/will.dunklin/Desktop/work/QuickView/data/hui/v2_ndg_cdnc_ssat_diag_simple_pd.eam.h0.2011-01.nc'
-        data_file2 = '/home/local/KHQ/will.dunklin/Desktop/work/QuickView/data/hui/v2_ndg_cdnc_ssat_diag_simple_pi.eam.h0.2011-01.nc'
-        self.ctrl_file = data_file1 #ctrl_file
-        self.test_file = data_file2 #test_file
+        # Store the file paths
+        self.ctrl_file = ctrl_file
+        self.test_file = test_file
         self.conn_file = conn_file
 
         if self.ctrl_data is None or self.test_data is None:

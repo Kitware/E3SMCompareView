@@ -53,6 +53,9 @@ class EAMApp(TrameApp):
                 "timestamps": [],
                 # Fields summaries
                 "fields_avgs": {},
+                # Simulation file selection for ctrl/test comparison
+                "ctrl_simulation_file": "",
+                "test_simulation_file": "",
             }
         )
 
@@ -306,7 +309,7 @@ class EAMApp(TrameApp):
         self.file_browser.set_data_simulation(state_content["files"]["simulation"])
         self.file_browser.set_data_connectivity(state_content["files"]["connectivity"])
         await self.data_loading_open(
-            self.file_browser.get("data_simulation"),
+            self.file_browser.get("data_simulation_files"),
             self.file_browser.get("data_connectivity"),
         )
 
@@ -335,7 +338,7 @@ class EAMApp(TrameApp):
             self.file_browser.set("state_loading", False)
 
     @controller.add_task("file_selection_load")
-    async def data_loading_open(self, simulation, connectivity):
+    async def data_loading_open(self, simulation_files, connectivity):
         # Reset state
         self.state.variables_selected = []
         self.state.variables_loaded = False
@@ -346,14 +349,22 @@ class EAMApp(TrameApp):
         self.state.time_idx = 0
         self.state.timestamps = []
 
-        self.state.data_files = [simulation, simulation, simulation]
+        self.state.data_files = simulation_files
         self.state.control_data = ""
         self.state.test_data = []
 
+        # Initialize ctrl/test file selection
+        if len(simulation_files) >= 2:
+            self.state.ctrl_simulation_file = simulation_files[0]
+            self.state.test_simulation_file = simulation_files[1]
+        elif len(simulation_files) == 1:
+            self.state.ctrl_simulation_file = simulation_files[0]
+            self.state.test_simulation_file = simulation_files[0]
+
         await asyncio.sleep(0.1)
         self.source.Update(
-            ctrl_file=simulation,
-            test_file=simulation,
+            ctrl_file=simulation_files[0],
+            test_file=simulation_files[1] if len(simulation_files) > 1 else simulation_files[0],
             conn_file=connectivity,
         )
 
@@ -456,9 +467,13 @@ class EAMApp(TrameApp):
         await self.server.network_completion
 
         await asyncio.sleep(0.1)
+        # Use the selected ctrl/test files from the UI state
+        ctrl_file = self.state.ctrl_simulation_file or self.source.ctrl_file
+        test_file = self.state.test_simulation_file or self.source.test_file
+
         self.source.Update(
-            ctrl_file=self.source.ctrl_file,
-            test_file=self.source.test_file,
+            ctrl_file=ctrl_file,
+            test_file=test_file,
             conn_file=self.source.conn_file,
             variables=flattened_vars,
             force_reload=True,

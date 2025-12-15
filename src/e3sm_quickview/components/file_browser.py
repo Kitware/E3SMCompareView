@@ -50,6 +50,9 @@ class ParaViewFileBrowser(TrameComponent):
         # Disable state import by default
         self.set("is_state_file", False)
 
+        # Initialize simulation files list (instead of single file)
+        self.set("data_simulation_files", [])
+
         self._pxm = simple.servermanager.ProxyManager()
         self._proxy_listing = self._pxm.NewProxy("misc", "ListDirectory")
         self._proxy_directories = simple.servermanager.VectorProperty(
@@ -180,12 +183,16 @@ class ParaViewFileBrowser(TrameComponent):
             file = self._current_path / entry.get("name")
             file_name = file.name.lower()
             full_path = str(file)
-            var_name = (
-                "data_connectivity"
-                if "connectivity_" in file_name
-                else "data_simulation"
-            )
-            self.set(var_name, full_path)
+            if "connectivity_" in file_name:
+                self.set("data_connectivity", full_path)
+            else:
+                # Add to simulation files list
+                current_files = self.get("data_simulation_files") or []
+                if full_path not in current_files:
+                    # Create a new list to trigger state change
+                    self.set("data_simulation_files", [*current_files, full_path])
+                # Also set the legacy single file variable for backward compatibility
+                self.set("data_simulation", full_path)
             self.update_listing(full_path)
             return entry_type, full_path
 
@@ -199,8 +206,36 @@ class ParaViewFileBrowser(TrameComponent):
     def set_data_connectivity(self, value=None):
         self.set("data_connectivity", value or self.active_path)
 
+    # TODO: remove this method (used by legacy CLI)
     def set_data_simulation(self, value=None):
-        self.set("data_simulation", value or self.active_path)
+        """Legacy method for backward compatibility - adds to simulation files list"""
+        file_path = value or self.active_path
+        self.add_simulation_file(file_path)
+
+    def add_simulation_file(self, file_path=None):
+        file_path = file_path or self.active_path
+        current_files = self.get("data_simulation_files") or []
+        if file_path not in current_files:
+            # Create a new list to trigger state change
+            self.set("data_simulation_files", [*current_files, file_path])
+        # Set the single file variable to the most recently added file
+        self.set("data_simulation", file_path)
+
+    def remove_simulation_file(self, file_path):
+        current_files = self.get("data_simulation_files") or []
+        if file_path in current_files:
+            # Create a new list to trigger state change
+            new_files = [f for f in current_files if f != file_path]
+            self.set("data_simulation_files", new_files)
+            # Update the single file variable
+            if new_files:
+                self.set("data_simulation", new_files[-1])
+            else:
+                self.set("data_simulation", "")
+
+    def clear_simulation_files(self):
+        self.set("data_simulation_files", [])
+        self.set("data_simulation", "")
 
     def goto_home(self):
         self._current_path = self._home_path
@@ -259,10 +294,11 @@ class ParaViewFileBrowser(TrameComponent):
     def load_data_files(self, **_):
         self.set("loading", True)
         print("Load files:")
-        print(" - simulation:", self.get("data_simulation"))
+        simulation_files = self.get("data_simulation_files") or []
+        print(" - simulation files:", simulation_files)
         print(" - connectivity:", self.get("data_connectivity"))
         self.ctrl.file_selection_load(
-            self.get("data_simulation"), self.get("data_connectivity")
+            simulation_files, self.get("data_connectivity")
         )
 
     def import_state_file(self):
@@ -362,15 +398,31 @@ class ParaViewFileBrowser(TrameComponent):
 
             with v3.VCol():
                 html.Label(
-                    "Simulation File",
+                    "Simulation Files",
                     classes="text-subtitle-1 font-weight-medium d-block",
                 )
-                v3.VTextField(
-                    v_model=(self.name("data_simulation"), ""),
-                    density="compact",
-                    variant="outlined",
-                    disabled=True,
-                    messages="EAM's history output on the physics grids (pg2 grids) written by EAMv2, v3, and an intermediate version towards v4 (EAMxx).",
+                # Display list of simulation files with remove buttons
+                with html.Div(
+                    v_if=f"{self.name('data_simulation_files')}.length > 0",
+                    classes="mb-2",
+                ):
+                    with html.Div(
+                        v_for=f"file in {self.name('data_simulation_files')}",
+                        key="file",
+                        style="display: inline-block;",
+                    ):
+                        with v3.VChip(
+                            closable=True,
+                            click_close=(self.remove_simulation_file, "[file]"),
+                            classes="ma-1",
+                            size="small",
+                        ):
+                            html.Span("{{ file.split('/').pop() }}")
+
+                html.Div(
+                    "No simulation files selected",
+                    v_if=f"{self.name('data_simulation_files')}.length === 0",
+                    classes="text-caption text-disabled mb-2",
                 )
                 html.Label(
                     "Connectivity File",
@@ -389,12 +441,12 @@ class ParaViewFileBrowser(TrameComponent):
                 v3.VBtn(
                     classes="text-none",
                     variant="tonal",
-                    text="Simulation",
+                    text="Add Simulation",
                     prepend_icon="mdi-database-plus",
                     disabled=(
                         f"{self.name('listing')}[{self.name('active')}]?.type !== 'file'",
                     ),
-                    click=self.set_data_simulation,
+                    click=self.add_simulation_file,
                 )
                 v3.VBtn(
                     classes="text-none",
@@ -411,7 +463,7 @@ class ParaViewFileBrowser(TrameComponent):
                     text="Reset",
                     variant="tonal",
                     prepend_icon="mdi-close-octagon-outline",
-                    click=f"{self.name('data_connectivity')}='';{self.name('data_simulation')}='';{self.name('error')}=false",
+                    click=f"{self.name('data_connectivity')}='';{self.name('data_simulation')}='';{self.name('data_simulation_files')}=[];{self.name('error')}=false",
                 )
                 v3.VSpacer()
                 v3.VBtn(
@@ -437,7 +489,7 @@ class ParaViewFileBrowser(TrameComponent):
                     text="Load files",
                     variant="flat",
                     disabled=(
-                        f"!{self.name('data_simulation')} || !{self.name('data_connectivity')} || {self.name('error')}",
+                        f"{self.name('data_simulation_files')}.length === 0 || !{self.name('data_connectivity')} || {self.name('error')}",
                     ),
                     loading=(self.name("loading"), False),
                     click=self.load_data_files,
