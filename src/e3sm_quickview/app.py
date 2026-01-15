@@ -56,6 +56,8 @@ class EAMApp(TrameApp):
                 # Simulation file selection for ctrl/test comparison
                 "ctrl_simulation_file": "",
                 "test_simulation_file": "",
+                # Column visibility for variable comparisons
+                "selected_columns": ["ctrl", "test", "diff", "comp1", "comp2"],
             }
         )
 

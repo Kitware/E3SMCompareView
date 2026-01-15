@@ -228,25 +228,14 @@ class VariableView(TrameComponent):
                 with v3.VRow(
                     dense=True,
                     classes="ma-0 pa-0 bg-black opacity-90 d-flex align-center",
+                    style="flex-wrap: nowrap;",
                 ):
                     tview.create_size_menu(self.name, self.config)
-                    with html.Div(
+                    html.Div(
                         self.variable_name,
                         classes="text-subtitle-2 pr-2",
-                        style="user-select: none;",
-                    ):
-                        with v3.VMenu(activator="parent"):
-                            with v3.VList(density="compact", style="max-height: 40vh;"):
-                                with self.config.provide_as("config"):
-                                    v3.VListItem(
-                                        subtitle=("name",),
-                                        v_for="name, idx in config.swap_group",
-                                        key="name",
-                                        click=(
-                                            self.ctrl.swap_variables,
-                                            "[config.variable, name]",
-                                        ),
-                                    )
+                        style="user-select: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;",
+                    )
 
                     v3.VIcon(
                         "mdi-lock-outline",
@@ -421,6 +410,23 @@ class ViewManager(TrameComponent):
         with DivLayout(self.server, template_name="auto_layout") as self.ui:
             if self.state.layout_grouped:
                 with v3.VCol(classes="pa-1"):
+                    # Column toggle buttons at the top
+                    with v3.VRow(dense=True, classes="mb-2 justify-center"):
+                        all_comp_types = ["ctrl", "test", "diff", "comp1", "comp2"]
+                        for comp_type in all_comp_types:
+                            with v3.VCol(cols="auto"):
+                                v3.VBtn(
+                                    comp_type.upper(),
+                                    size="small",
+                                    variant=("selected_columns.includes('{0}') ? 'flat' : 'outlined'".format(comp_type),),
+                                    color=("selected_columns.includes('{0}') ? 'primary' : 'default'".format(comp_type),),
+                                    click=(
+                                        f"selected_columns.includes('{comp_type}') ? "
+                                        f"selected_columns = selected_columns.filter(c => c !== '{comp_type}') : "
+                                        f"selected_columns = [...selected_columns, '{comp_type}']"
+                                    ),
+                                )
+
                     for var_type in variables.keys():
                         var_names = variables[var_type]
                         total_size = len(var_names)
@@ -430,7 +436,11 @@ class ViewManager(TrameComponent):
                             continue
 
                         for var_name in var_names:
-                            var_comps = [f"{var_name}_ctrl", f"{var_name}_test", f"{var_name}_diff", f"{var_name}_comp1", f"{var_name}_comp2"]
+                            # Define all possible comparison types
+                            all_comp_types = ["ctrl", "test", "diff", "comp1", "comp2"]
+                            # Build the full list of comparisons
+                            var_comps = [f"{var_name}_{comp_type}" for comp_type in all_comp_types]
+
                             # Look up color from variable_types to match chip colors
                             border_color = type_to_color.get(str(var_type), "primary")
                             with v3.VAlert(
@@ -440,33 +450,35 @@ class ViewManager(TrameComponent):
                                 border_color=border_color,
                             ):
                                 with v3.VRow(dense=True):
-                                    for name in var_comps:
+                                    for comp_type, name in zip(all_comp_types, var_comps):
                                         print("Creating view for", name)
                                         view = self.get_view(name, var_type)
                                         view.config.swap_group = sorted(
                                             [n for n in var_comps if n != name]
                                         )
                                         with view.config.provide_as("config"):
-                                            v3.VCol(
-                                                v_if="config.break_row",
-                                                cols=12,
-                                                classes="pa-0",
-                                                style=("`order: ${config.order};`",),
-                                            )
-                                            # For flow handling
-                                            with v3.Template(v_if="!config.size"):
+                                            # Only show column if it's in selected_columns
+                                            with v3.Template(v_if=f"selected_columns.includes('{comp_type}')"):
                                                 v3.VCol(
-                                                    v_for="i in config.offset",
-                                                    key="i",
-                                                    style=("{ order: config.order }",),
+                                                    v_if="config.break_row",
+                                                    cols=12,
+                                                    classes="pa-0",
+                                                    style=("`order: ${config.order};`",),
                                                 )
-                                            with v3.VCol(
-                                                offset=("config.offset * config.size",),
-                                                cols=("2",),
-                                                # cols=("config.size",),
-                                                style=("`order: ${config.order};`",),
-                                            ):
-                                                client.ServerTemplate(name=view.name)
+                                                # For flow handling
+                                                with v3.Template(v_if="!config.size"):
+                                                    v3.VCol(
+                                                        v_for="i in config.offset",
+                                                        key="i",
+                                                        style=("{ order: config.order }",),
+                                                    )
+                                                with v3.VCol(
+                                                    offset=("config.offset * config.size",),
+                                                    cols=("Math.floor(12 / selected_columns.length)",),
+                                                    # cols=("config.size",),
+                                                    style=("`order: ${config.order};`",),
+                                                ):
+                                                    client.ServerTemplate(name=view.name)
             else:
                 all_names = [name for names in variables.values() for name in names]
                 with v3.VRow(dense=True, classes="pa-2"):
