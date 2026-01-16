@@ -410,23 +410,6 @@ class ViewManager(TrameComponent):
         with DivLayout(self.server, template_name="auto_layout") as self.ui:
             if self.state.layout_grouped:
                 with v3.VCol(classes="pa-1"):
-                    # Column toggle buttons at the top
-                    with v3.VRow(dense=True, classes="mb-2 justify-center"):
-                        all_comp_types = ["ctrl", "test", "diff", "comp1", "comp2"]
-                        for comp_type in all_comp_types:
-                            with v3.VCol(cols="auto"):
-                                v3.VBtn(
-                                    comp_type.upper(),
-                                    size="small",
-                                    variant=("selected_columns.includes('{0}') ? 'flat' : 'outlined'".format(comp_type),),
-                                    color=("selected_columns.includes('{0}') ? 'primary' : 'default'".format(comp_type),),
-                                    click=(
-                                        f"selected_columns.includes('{comp_type}') ? "
-                                        f"selected_columns = selected_columns.filter(c => c !== '{comp_type}') : "
-                                        f"selected_columns = [...selected_columns, '{comp_type}']"
-                                    ),
-                                )
-
                     for var_type in variables.keys():
                         var_names = variables[var_type]
                         total_size = len(var_names)
