@@ -85,8 +85,8 @@ build_command = """
   python -m build .
 """
 
-[tool.semantic_release.branches.master]
-match = "master"
+[tool.semantic_release.branches.main]
+match = "main"
 
 [tool.semantic_release.publish]
 dist_glob_patterns = ["dist/*"]
