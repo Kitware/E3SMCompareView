@@ -19,7 +19,7 @@ jobs:
       contents: write
     environment:
       name: pypi
-      url: https://pypi.org/p/e3sm-quickview
+      url: https://pypi.org/p/e3sm-compareview
 
     steps:
       - uses: actions/checkout@v4
