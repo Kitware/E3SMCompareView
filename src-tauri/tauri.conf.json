@@ -6,7 +6,7 @@
     "distDir": "./www"
   },
   "package": {
-    "productName": "QuickView",
+    "productName": "CompareView",
     "version": "1.0.0"
   },
   "tauri": {
@@ -69,7 +69,7 @@
         "fullscreen": false,
         "height": 600,
         "resizable": true,
-        "title": "QuickView",
+        "title": "CompareView",
         "width": 800,
         "visible": false,
         "additionalBrowserArgs": "--force-device-scale-factor=1"
