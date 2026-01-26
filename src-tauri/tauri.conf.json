@@ -40,7 +40,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "e3sm.quickview",
+      "identifier": "e3sm.compareview",
       "longDescription": "",
       "macOS": {
         "entitlements": null,

@@ -1,12 +1,12 @@
 #!/bin/bash
 basedir=$(cd "$(dirname "$0")/../lib" && pwd)
 
-if [ -d "$basedir/quickview" ]; then
-    rootdir="$basedir/quickview"
-elif [ -d "$basedir/quick-view" ]; then
-    rootdir="$basedir/quick-view"
+if [ -d "$basedir/compareview" ]; then
+    rootdir="$basedir/compareview"
+elif [ -d "$basedir/compare-view" ]; then
+    rootdir="$basedir/compare-view"
 else
-    echo "Error: Could not find quickview or quick-view directory in $basedir" >&2
+    echo "Error: Could not find compareview or compare-view directory in $basedir" >&2
     exit 1
 fi
 
