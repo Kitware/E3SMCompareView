@@ -147,9 +147,10 @@ class EAMVisSource:
             return
         else:
             self.slicing[dimension] = slice
-            if self.data is not None:
+            if self.ctrl_data is not None and self.test_data is not None:
                 x = json.dumps(self.slicing)
-                self.data.Slicing = x
+                self.ctrl_data.Slicing = x
+                self.test_data.Slicing = x
 
     def Update(self, ctrl_file, test_file, conn_file, variables=[], force_reload=False):
         # Check if we need to reload

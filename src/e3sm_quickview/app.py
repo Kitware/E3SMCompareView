@@ -517,7 +517,7 @@ class EAMApp(TrameApp):
         for name in active_tools:
             if name == "select-slice-time":
                 track_count = len(self.state.animation_tracks or [])
-                rows_needed = max(1, (track_count + 2) // 3)  # 3 sliders per row
+                rows_needed = max([1, (track_count + 2) // 3])  # 3 sliders per row
                 top_padding += 70 * rows_needed
             else:
                 top_padding += toolbars.SIZES.get(name, 0)
