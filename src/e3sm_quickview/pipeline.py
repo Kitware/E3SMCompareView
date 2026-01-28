@@ -52,8 +52,12 @@ class EAMVisSource:
         self.timestamps = []
         self.center = 0.0
 
+        self.prog_filter = None
+        self.atmos_extract = None
         self.atmos_proj = None
+        self.cont_extract = None
         self.cont_proj = None
+        self.grid_gen = None
         self.grid_proj = None
 
         self.extents = [-180.0, 180.0, -90.0, 90.0]
@@ -80,11 +84,11 @@ class EAMVisSource:
         if not self.valid:
             return
 
-        atmos_extract = FindSource("AtmosExtract")
+        atmos_extract = self.atmos_extract or FindSource("AtmosExtract")
         atmos_extract.LongitudeRange = cliplong
         atmos_extract.LatitudeRange = cliplat
 
-        cont_extract = FindSource("ContExtract")
+        cont_extract = self.cont_extract or FindSource("ContExtract")
         cont_extract.LongitudeRange = cliplong
         cont_extract.LatitudeRange = cliplat
 
@@ -131,10 +135,10 @@ class EAMVisSource:
         if cont_proj:
             cont_proj.UpdatePipeline(time)
 
-        atmos_extract = FindSource("AtmosExtract")
+        atmos_extract = self.atmos_extract or FindSource("AtmosExtract")
         bounds = atmos_extract.GetDataInformation().GetBounds()
 
-        grid_gen = FindSource("GridGen")
+        grid_gen = self.grid_gen or FindSource("GridGen")
         if grid_gen:
             grid_gen.LongitudeRange = [bounds[0], bounds[1]]
             grid_gen.LatitudeRange = [bounds[2], bounds[3]]
@@ -265,25 +269,25 @@ for var in vars:
 output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.compute.extract_avgs
 """
             print("ProgrammableFilter script:\n", script, end='')
-            prog_filter = ProgrammableFilter(registrationName='ProgrammableFilter', Input=[self.ctrl_data, self.test_data])
-            prog_filter.Script = script
-            prog_filter.RequestInformationScript = ''
-            prog_filter.RequestUpdateExtentScript = ''
-            prog_filter.PythonPath = ''
+            self.prog_filter = ProgrammableFilter(registrationName='ProgrammableFilter', Input=[self.ctrl_data, self.test_data])
+            self.prog_filter.Script = script
+            self.prog_filter.RequestInformationScript = ''
+            self.prog_filter.RequestUpdateExtentScript = ''
+            self.prog_filter.PythonPath = ''
 
 
             # Step 1: Extract and transform atmospheric data
-            atmos_extract = EAMTransformAndExtract(  # noqa: F821
-                registrationName="AtmosExtract", Input=prog_filter
+            self.atmos_extract = EAMTransformAndExtract(  # noqa: F821
+                registrationName="AtmosExtract", Input=self.prog_filter
             )
-            atmos_extract.LongitudeRange = [-180.0, 180.0]
-            atmos_extract.LatitudeRange = [-90.0, 90.0]
-            atmos_extract.UpdatePipeline()
-            self.extents = atmos_extract.GetDataInformation().GetBounds()
+            self.atmos_extract.LongitudeRange = [-180.0, 180.0]
+            self.atmos_extract.LatitudeRange = [-90.0, 90.0]
+            self.atmos_extract.UpdatePipeline()
+            self.extents = self.atmos_extract.GetDataInformation().GetBounds()
 
             # Step 2: Apply map projection to atmospheric data
             self.atmos_proj = EAMProject(  # noqa: F821
-                registrationName="AtmosProj", Input=OutputPort(atmos_extract, 0)
+                registrationName="AtmosProj", Input=OutputPort(self.atmos_extract, 0)
             )
             self.atmos_proj.Projection = self.projection
             self.atmos_proj.Translate = 0
@@ -307,27 +311,26 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
                 self.globe = cont_contour
 
             # Step 4: Extract and transform continent data
-            cont_extract = EAMTransformAndExtract(  # noqa: F821
+            self.cont_extract = EAMTransformAndExtract(  # noqa: F821
                 registrationName="ContExtract", Input=self.globe
             )
-            cont_extract.LongitudeRange = [-180.0, 180.0]
-            cont_extract.LatitudeRange = [-90.0, 90.0]
-
+            self.cont_extract.LongitudeRange = [-180.0, 180.0]
+            self.cont_extract.LatitudeRange = [-90.0, 90.0]
             # Step 5: Apply map projection to continents
             self.cont_proj = EAMProject(  # noqa: F821
-                registrationName="ContProj", Input=OutputPort(cont_extract, 0)
+                registrationName="ContProj", Input=OutputPort(self.cont_extract, 0)
             )
             self.cont_proj.Projection = self.projection
             self.cont_proj.Translate = 0
             self.cont_proj.UpdatePipeline()
 
             # Step 6: Generate lat/lon grid lines
-            grid_gen = EAMGridLines(registrationName="GridGen")  # noqa: F821
-            grid_gen.UpdatePipeline()
+            self.grid_gen = EAMGridLines(registrationName="GridGen")  # noqa: F821
+            self.grid_gen.UpdatePipeline()
 
             # Step 7: Apply map projection to grid lines
             self.grid_proj = EAMProject(  # noqa: F821
-                registrationName="GridProj", Input=OutputPort(grid_gen, 0)
+                registrationName="GridProj", Input=OutputPort(self.grid_gen, 0)
             )
             self.grid_proj.Projection = self.projection
             self.grid_proj.Translate = 0
