@@ -539,20 +539,20 @@ class EAMApp(TrameApp):
         )
 
     @change(
-        "variables_loaded",
+        # "variables_loaded",
         "crop_longitude",
         "crop_latitude",
         "projection",
     )
     def _on_downstream_change(
         self,
-        variables_loaded,
+        # variables_loaded,
         crop_longitude,
         crop_latitude,
         projection,
         **_,
     ):
-        if not variables_loaded:
+        if not self.state.variables_loaded:
             return
 
         self.source.ApplyClipping(crop_longitude, crop_latitude)

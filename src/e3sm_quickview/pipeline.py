@@ -52,6 +52,10 @@ class EAMVisSource:
         self.timestamps = []
         self.center = 0.0
 
+        self.atmos_proj = None
+        self.cont_proj = None
+        self.grid_proj = None
+
         self.extents = [-180.0, 180.0, -90.0, 90.0]
         self.moveextents = [-180.0, 180.0, -90.0, 90.0]
 
@@ -101,9 +105,9 @@ class EAMVisSource:
         if not self.valid:
             return
 
-        atmos_proj = FindSource("AtmosProj")
-        cont_proj = FindSource("ContProj")
-        grid_proj = FindSource("GridProj")
+        atmos_proj = self.atmos_proj or FindSource("AtmosProj")
+        cont_proj = self.cont_proj or FindSource("ContProj")
+        grid_proj = self.grid_proj or FindSource("GridProj")
         if self.projection != proj:
             self.projection = proj
             atmos_proj.Projection = proj
@@ -118,12 +122,12 @@ class EAMVisSource:
         if not self.valid:
             return
 
-        atmos_proj = FindSource("AtmosProj")
+        atmos_proj = self.atmos_proj or FindSource("AtmosProj")
         if atmos_proj:
             atmos_proj.UpdatePipeline(time)
         self.moveextents = atmos_proj.GetDataInformation().GetBounds()
 
-        cont_proj = FindSource("ContProj")
+        cont_proj = self.cont_proj or FindSource("ContProj")
         if cont_proj:
             cont_proj.UpdatePipeline(time)
 
@@ -134,7 +138,7 @@ class EAMVisSource:
         if grid_gen:
             grid_gen.LongitudeRange = [bounds[0], bounds[1]]
             grid_gen.LatitudeRange = [bounds[2], bounds[3]]
-        grid_proj = FindSource("GridProj")
+        grid_proj = self.grid_proj or FindSource("GridProj")
         if grid_proj:
             grid_proj.UpdatePipeline(time)
 
@@ -278,13 +282,13 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
             self.extents = atmos_extract.GetDataInformation().GetBounds()
 
             # Step 2: Apply map projection to atmospheric data
-            atmos_proj = EAMProject(  # noqa: F821
+            self.atmos_proj = EAMProject(  # noqa: F821
                 registrationName="AtmosProj", Input=OutputPort(atmos_extract, 0)
             )
-            atmos_proj.Projection = self.projection
-            atmos_proj.Translate = 0
-            atmos_proj.UpdatePipeline()
-            self.moveextents = atmos_proj.GetDataInformation().GetBounds()
+            self.atmos_proj.Projection = self.projection
+            self.atmos_proj.Translate = 0
+            self.atmos_proj.UpdatePipeline()
+            self.moveextents = self.atmos_proj.GetDataInformation().GetBounds()
 
             # Step 3: Load and process continent outlines
             if self.globe is None:
@@ -310,29 +314,29 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
             cont_extract.LatitudeRange = [-90.0, 90.0]
 
             # Step 5: Apply map projection to continents
-            cont_proj = EAMProject(  # noqa: F821
+            self.cont_proj = EAMProject(  # noqa: F821
                 registrationName="ContProj", Input=OutputPort(cont_extract, 0)
             )
-            cont_proj.Projection = self.projection
-            cont_proj.Translate = 0
-            cont_proj.UpdatePipeline()
+            self.cont_proj.Projection = self.projection
+            self.cont_proj.Translate = 0
+            self.cont_proj.UpdatePipeline()
 
             # Step 6: Generate lat/lon grid lines
             grid_gen = EAMGridLines(registrationName="GridGen")  # noqa: F821
             grid_gen.UpdatePipeline()
 
             # Step 7: Apply map projection to grid lines
-            grid_proj = EAMProject(  # noqa: F821
+            self.grid_proj = EAMProject(  # noqa: F821
                 registrationName="GridProj", Input=OutputPort(grid_gen, 0)
             )
-            grid_proj.Projection = self.projection
-            grid_proj.Translate = 0
-            grid_proj.UpdatePipeline()
+            self.grid_proj.Projection = self.projection
+            self.grid_proj.Translate = 0
+            self.grid_proj.UpdatePipeline()
 
             # Step 8: Cache all projected views for rendering
-            self.views["atmosphere_data"] = OutputPort(atmos_proj, 0)
-            self.views["continents"] = OutputPort(cont_proj, 0)
-            self.views["grid_lines"] = OutputPort(grid_proj, 0)
+            self.views["atmosphere_data"] = OutputPort(self.atmos_proj, 0)
+            self.views["continents"] = OutputPort(self.cont_proj, 0)
+            self.views["grid_lines"] = OutputPort(self.grid_proj, 0)
 
             self.valid = True
             self.observer.clear()
