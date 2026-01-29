@@ -503,15 +503,21 @@ class ViewManager(TrameComponent):
         orders_to_update = []
         for var_type in variables.keys():
             var_names = variables[var_type]
-            for name in var_names:
-                config = self.get_view(name, var_type).config
-                self._active_configs[name] = config
-                if config.order:
-                    order_max = max(order_max, config.order)
-                    assert config.order not in existed_order, "Order already assigned"
-                    existed_order.add(config.order)
-                else:
-                    orders_to_update.append(config)
+            for var_name in var_names:
+                # Define all possible comparison types
+                all_comp_types = ["ctrl", "test", "diff", "comp1", "comp2"]
+                # Build the full list of comparisons
+                var_comps = [f"{var_name}_{comp_type}" for comp_type in all_comp_types]
+
+                for name in var_comps:
+                    config = self.get_view(name, var_type).config
+                    self._active_configs[name] = config
+                    if config.order:
+                        order_max = max(order_max, config.order)
+                        assert config.order not in existed_order, "Order already assigned"
+                        existed_order.add(config.order)
+                    else:
+                        orders_to_update.append(config)
 
         next_order = order_max + 1
         for config in orders_to_update:
