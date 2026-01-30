@@ -262,13 +262,13 @@ class VariableView(TrameComponent):
                             classes="text-caption px-1",
                             v_if="interfaces.length > 1",
                         )
-                    v3.VSpacer()
-                    html.Div(
-                        "avg = {{"
-                        f"fields_avgs['{self.variable_name}']?.toExponential(2) || 'N/A'"
-                        "}}",
-                        classes="text-caption px-1",
-                    )
+                    # v3.VSpacer()
+                    # html.Div(
+                    #     "avg = {{"
+                    #     f"fields_avgs['{self.variable_name}']?.toExponential(2) || 'N/A'"
+                    #     "}}",
+                    #     classes="text-caption px-1",
+                    # )
 
                 with html.Div(
                     style=(
