@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.3.3 (2026-03-19)
+
+### Bug Fixes
+
+- Constrain trame-dataclass version
+  ([`d207e52`](https://github.com/Kitware/E3SMQuickCompare/commit/d207e52ce78156fbe4f9b26f7e31ad5d1e4259fa))
+
+
 ## v1.3.2 (2026-03-11)
 
 ### Bug Fixes
