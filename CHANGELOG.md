@@ -2,6 +2,33 @@
 
 <!-- version list -->
 
+## v1.3.4 (2026-03-30)
+
+### Bug Fixes
+
+- Harden pipeline algorithm to avoid None values
+  ([`d77d387`](https://github.com/Kitware/E3SMQuickCompare/commit/d77d387bb34f9312fb25283942830704f0ef6e9d))
+
+- Synchronize camera position between comparison types
+  ([`4d74d44`](https://github.com/Kitware/E3SMQuickCompare/commit/4d74d44fd1ce8887340948cd22422940a995b4a0))
+
+- **dataclass**: Update to latest dataclass
+  ([`edc11d5`](https://github.com/Kitware/E3SMQuickCompare/commit/edc11d5d42f747eba5e5159e68d310a9c25149bc))
+
+### Chores
+
+- Remove unused file
+  ([`3261f24`](https://github.com/Kitware/E3SMQuickCompare/commit/3261f24db3454a1ff6c1301827a1b1b325d58736))
+
+- Update gitignore
+  ([`3985d9a`](https://github.com/Kitware/E3SMQuickCompare/commit/3985d9a9471a95eab29105df5bd9cb44ca6a2c3b))
+
+### Code Style
+
+- **pre-commit**: Apply style
+  ([`1af039c`](https://github.com/Kitware/E3SMQuickCompare/commit/1af039cc350499833edf5e670b5fe825f8b105f3))
+
+
 ## v1.3.3 (2026-03-19)
 
 ### Bug Fixes
