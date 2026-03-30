@@ -29,6 +29,12 @@ DEFAULT_STYLES = {
     "classes": "border-b-thin",
 }
 
+COMPARISON_TYPE_LABELS = {
+    "diff": "Diff",
+    "comp1": "Rel Diff (w.r.t. ctrl)",
+    "comp2": "Rel Diff (w.r.t. mean)",
+}
+
 
 def to_kwargs(value):
     return {
@@ -247,7 +253,9 @@ class ComparisonMode(v3.VToolbar):
                 v3.VLabel("Comparison", classes="text-subtitle-2 px-4")
                 for comparison_type in COMPARISON_TYPES:
                     v3.VBtn(
-                        comparison_type.upper(),
+                        COMPARISON_TYPE_LABELS.get(
+                            comparison_type, comparison_type.upper()
+                        ),
                         size="small",
                         variant=(
                             f"comparison_type === '{comparison_type}' ? 'flat' : 'outlined'",
@@ -268,7 +276,7 @@ class ComparisonMode(v3.VToolbar):
                 v3.VLabel("Columns", classes="text-subtitle-2 px-4")
                 for comp_type in ["ctrl", "test", "diff", "comp1", "comp2"]:
                     v3.VBtn(
-                        comp_type.upper(),
+                        COMPARISON_TYPE_LABELS.get(comp_type, comp_type.upper()),
                         size="small",
                         variant=(
                             "selected_columns.includes('{0}') ? 'flat' : 'outlined'".format(
