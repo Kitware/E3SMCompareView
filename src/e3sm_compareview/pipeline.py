@@ -246,22 +246,31 @@ class EAMVisSource:
         # Emit the control array plus one comparison array per selected simulation.
         return f"""import numpy as np
 
+def _to_float_array(values, shape=None):
+    try:
+        array = np.asarray(values, dtype=np.float64)
+    except (TypeError, ValueError):
+        return None if shape is None else np.full(shape, np.nan, dtype=np.float64)
+    if shape is not None and array.shape != shape:
+        return np.full(shape, np.nan, dtype=np.float64)
+    return array
+
 vars = {self.loaded_variables}
 for var in vars:
-    ctrl = inputs[0].CellData[f"{{var}}"]
-    ctrl_np = np.asarray(ctrl)
+    ctrl_np = _to_float_array(inputs[0].CellData[f"{{var}}"])
+    if ctrl_np is None:
+        continue
 
-    output.CellData.append(ctrl, f'{{var}}')
-    output.CellData.append(ctrl, f'{{var}}__control')
+    output.CellData.append(ctrl_np, f'{{var}}')
+    output.CellData.append(ctrl_np, f'{{var}}__control')
     for sim_index, sim_input in enumerate(inputs[1:], start=1):
-        sim = sim_input.CellData[f"{{var}}"]
-        sim_np = np.asarray(sim)
-        output.CellData.append(sim, f'{{var}}__test__{{sim_index}}')
+        sim_np = _to_float_array(sim_input.CellData[f"{{var}}"], ctrl_np.shape)
+        output.CellData.append(sim_np, f'{{var}}__test__{{sim_index}}')
 
         # Use guarded division to avoid runtime warnings for zero-valued slices.
         diff = sim_np - ctrl_np
-        comp1 = np.full(diff.shape, np.nan, dtype=np.float64)
-        comp2 = np.full(diff.shape, np.nan, dtype=np.float64)
+        comp1 = np.full(ctrl_np.shape, np.nan, dtype=np.float64)
+        comp2 = np.full(ctrl_np.shape, np.nan, dtype=np.float64)
         denom_ctrl = ctrl_np
         denom_sum = sim_np + ctrl_np
         np.divide(diff, denom_ctrl, out=comp1, where=(denom_ctrl != 0))
@@ -271,7 +280,9 @@ for var in vars:
         output.CellData.append(comp1, f'{{var}}__comp1__{{sim_index}}')
         output.CellData.append(comp2, f'{{var}}__comp2__{{sim_index}}')
 
-output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.compute.extract_avgs
+area_np = _to_float_array(inputs[0].CellData["area"])
+if area_np is not None:
+    output.CellData.append(area_np, 'area') # needed for utils.compute.extract_avgs
 """
 
     def _build_view_specs(self, variables):
@@ -446,6 +457,17 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
                 reader.ConnectivityFile = self.conn_file
 
         self._update_varmeta()
+        # Keep loaded variables aligned with the shared metadata for the current
+        # simulation set to avoid requesting arrays that are unavailable on some inputs.
+        if self.varmeta is None:
+            self.loaded_variables = []
+        else:
+            valid_variables = set(self.varmeta)
+            self.loaded_variables = [
+                var_name
+                for var_name in self.loaded_variables
+                if var_name in valid_variables
+            ]
         self._configure_readers()
         self.observer.clear()
 
