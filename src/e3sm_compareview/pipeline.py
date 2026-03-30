@@ -5,7 +5,10 @@ import os
 import e3sm_quickview
 from paraview import simple
 
-from e3sm_compareview.comparison import COMPARISON_TYPES
+from e3sm_compareview.comparison import (
+    COMPARISON_TYPES,
+    COMPARISON_TYPE_TITLE_SUFFIXES,
+)
 
 from paraview.simple import (
     FindSource,
@@ -333,7 +336,10 @@ if area_np is not None:
                         "metric": comparison_type,
                         "comparison_mode": "multi-sim",
                         "comparison_type": comparison_type,
-                        "label": simulation["label"],
+                        "label": (
+                            f'{simulation["label"]} '
+                            f"({COMPARISON_TYPE_TITLE_SUFFIXES[comparison_type]})"
+                        ),
                         "path": simulation["path"],
                         "index": index,
                         "source_index": simulation.get("source_index", index),

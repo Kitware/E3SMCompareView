@@ -5,7 +5,7 @@ from trame.decorators import change
 from trame.widgets import client, html
 from trame.widgets import vuetify3 as v3
 
-from e3sm_compareview.comparison import COMPARISON_TYPES
+from e3sm_compareview.comparison import COMPARISON_TYPES, COMPARISON_TYPE_LABELS
 from e3sm_quickview.utils import js
 
 DENSITY = {
@@ -28,13 +28,6 @@ DEFAULT_STYLES = {
     "color": "white",
     "classes": "border-b-thin",
 }
-
-COMPARISON_TYPE_LABELS = {
-    "diff": "Diff",
-    "comp1": "Rel Diff (w.r.t. ctrl)",
-    "comp2": "Rel Diff (w.r.t. mean)",
-}
-
 
 def to_kwargs(value):
     return {
