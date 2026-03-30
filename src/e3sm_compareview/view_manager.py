@@ -1,11 +1,9 @@
 import math
 
-from trame.app import TrameComponent
+from trame.app import TrameComponent, dataclass
 from trame.ui.html import DivLayout
 from trame.widgets import paraview as pvw, vuetify3 as v3, client, html
 from trame.decorators import controller
-
-from trame_dataclass.core import StateDataModel
 
 from paraview import simple
 
@@ -46,28 +44,28 @@ def lut_name(element):
     return element.get("name").lower()
 
 
-class ViewConfiguration(StateDataModel):
-    variable: str
-    label: str = ""
-    preset: str = "Inferno (matplotlib)"
-    invert: bool = False
-    color_blind: bool = False
-    use_log_scale: bool = False
-    color_value_min: str = "0"
-    color_value_max: str = "1"
-    color_value_min_valid: bool = True
-    color_value_max_valid: bool = True
-    color_range: list[float] = (0, 1)
-    override_range: bool = False
-    order: int = 0
-    size: int = 4
-    offset: int = 0
-    break_row: bool = False
-    menu: bool = False
-    swap_group: list[str]
-    search: str | None
-    n_colors: int = 255
-    lut_img: str
+class ViewConfiguration(dataclass.StateDataModel):
+    variable: str = dataclass.Sync(str)
+    label: str = dataclass.Sync(str, "")
+    preset: str = dataclass.Sync(str, "Inferno (matplotlib)")
+    invert: bool = dataclass.Sync(bool, False)
+    color_blind: bool = dataclass.Sync(bool, False)
+    use_log_scale: bool = dataclass.Sync(bool, False)
+    color_value_min: str = dataclass.Sync(str, "0")
+    color_value_max: str = dataclass.Sync(str, "1")
+    color_value_min_valid: bool = dataclass.Sync(bool, True)
+    color_value_max_valid: bool = dataclass.Sync(bool, True)
+    color_range: list[float] = dataclass.Sync(tuple[float, float], (0, 1))
+    override_range: bool = dataclass.Sync(bool, False)
+    order: int = dataclass.Sync(int, 0)
+    size: int = dataclass.Sync(int, 4)
+    offset: int = dataclass.Sync(int, 0)
+    break_row: bool = dataclass.Sync(bool, False)
+    menu: bool = dataclass.Sync(bool, False)
+    swap_group: list[str] = dataclass.Sync(list[str], list)
+    search: str | None = dataclass.Sync(str)
+    n_colors: int = dataclass.Sync(int, 255)
+    lut_img: str = dataclass.Sync(str)
 
 
 class VariableView(TrameComponent):
@@ -215,7 +213,7 @@ class VariableView(TrameComponent):
             self.config.color_value_max_valid = False
 
         if self.config.color_value_min_valid and self.config.color_value_max_valid:
-            self.config.color_range = [min_value, max_value]
+            self.config.color_range = (min_value, max_value)
 
     @staticmethod
     def _is_finite_range(data_range):
@@ -233,7 +231,7 @@ class VariableView(TrameComponent):
             max_abs = candidate if max_abs is None else max(max_abs, candidate)
         if max_abs is None:
             return None
-        return [-max_abs, max_abs]
+        return (-max_abs, max_abs)
 
     def _get_multi_sim_default_range(self):
         data_info = self.source.views["atmosphere_data"].GetCellDataInformation()
@@ -255,7 +253,7 @@ class VariableView(TrameComponent):
                 candidate = max(abs(data_range[0]), abs(data_range[1]))
                 max_abs = candidate if max_abs is None else max(max_abs, candidate)
             if max_abs is not None:
-                return [-max_abs, max_abs]
+                return (-max_abs, max_abs)
             return None
 
         data_array = data_info.GetArray(self.array_name)
@@ -264,7 +262,7 @@ class VariableView(TrameComponent):
 
         data_range = data_array.GetRange()
         if self._is_finite_range(data_range):
-            return list(data_range)
+            return data_range
         return None
 
     def _get_two_sim_default_range(self):
@@ -289,10 +287,10 @@ class VariableView(TrameComponent):
                     if self._is_finite_range(ctrl_range) and self._is_finite_range(
                         test_range
                     ):
-                        return [
+                        return (
                             min(ctrl_range[0], test_range[0]),
                             max(ctrl_range[1], test_range[1]),
-                        ]
+                        )
 
         if self.role == "diff":
             diff_spec = spec_by_role.get("diff")
@@ -324,7 +322,7 @@ class VariableView(TrameComponent):
         if data_array:
             data_range = data_array.GetRange()
             if self._is_finite_range(data_range):
-                return list(data_range)
+                return data_range
 
         return None
 

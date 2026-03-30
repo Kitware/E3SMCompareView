@@ -21,7 +21,13 @@ from e3sm_compareview.comparison import (
     normalize_comparison_type,
     normalize_two_sim_target,
 )
-from e3sm_compareview.components import doc, drawers, file_browser, toolbars
+from e3sm_compareview.components import (
+    doc,
+    drawers,
+    file_browser,
+    simulation_selection,
+    toolbars,
+)
 from e3sm_compareview.pipeline import EAMVisSource
 from e3sm_compareview.view_manager import ViewManager
 from e3sm_quickview.components import css, dialogs
@@ -215,7 +221,7 @@ class EAMApp(TrameApp):
                 with v3.VMain():
                     dialogs.FileOpen(self.file_browser)
                     dialogs.StateDownload()
-                    drawers.SimulationSelection()
+                    simulation_selection.SimulationSelection()
                     drawers.FieldSelection(load_variables=self.data_load_variables)
 
                     with v3.VContainer(classes="h-100 pa-0", fluid=True):
