@@ -622,7 +622,7 @@ class ViewManager(TrameComponent):
                             border_color = type_to_color.get(str(var_type), "primary")
                             with v3.VAlert(
                                 border="start",
-                                classes="pr-1 py-1 pl-3 mb-1",
+                                classes="pr-1 py-1 pl-3 mb-6",
                                 variant="flat",
                                 border_color=border_color,
                             ):
