@@ -297,9 +297,7 @@ class ParaViewFileBrowser(TrameComponent):
         simulation_files = self.get("data_simulation_files") or []
         print(" - simulation files:", simulation_files)
         print(" - connectivity:", self.get("data_connectivity"))
-        self.ctrl.file_selection_load(
-            simulation_files, self.get("data_connectivity")
-        )
+        self.ctrl.file_selection_load(simulation_files, self.get("data_connectivity"))
 
     def import_state_file(self):
         self.set("state_loading", True)

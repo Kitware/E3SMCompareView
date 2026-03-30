@@ -226,7 +226,7 @@ class LandingPage(v3.VContainer):
                 in Hannah et al. (2021). The naming convention
                 for such grids is ne*pg2, with * being a number,
                 e.g., 4, 30, 120, 256. Further details about EAM's
-                cubed-sphere grids can be found in EAM's documention,
+                cubed-sphere grids can be found in EAM's documentation,
                 for example in this overview and this description.
                 """
             )

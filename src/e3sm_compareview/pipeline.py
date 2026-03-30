@@ -241,7 +241,9 @@ class EAMVisSource:
     def _normalize_timestamps(timestep_values):
         if isinstance(timestep_values, (list, tuple)):
             return list(timestep_values)
-        if hasattr(timestep_values, "__iter__") and not isinstance(timestep_values, str):
+        if hasattr(timestep_values, "__iter__") and not isinstance(
+            timestep_values, str
+        ):
             return list(timestep_values)
         return [timestep_values] if timestep_values is not None else []
 
@@ -303,7 +305,7 @@ if area_np is not None:
                 "base_variable": var_name,
                 "role": "control",
                 "metric": "raw",
-                "label": f'{control["label"]} (control)',
+                "label": f"{control['label']} (control)",
                 "path": control["path"],
                 "index": 0,
                 "source_index": control.get("source_index", 0),
@@ -326,7 +328,9 @@ if area_np is not None:
                     }
                 ]
 
-                for index, simulation in enumerate(self.simulation_configs[1:], start=1):
+                for index, simulation in enumerate(
+                    self.simulation_configs[1:], start=1
+                ):
                     comparison_spec = {
                         "array_name": self.comparison_array_name(
                             var_name, comparison_type, index
@@ -337,7 +341,7 @@ if area_np is not None:
                         "comparison_mode": "multi-sim",
                         "comparison_type": comparison_type,
                         "label": (
-                            f'{simulation["label"]} '
+                            f"{simulation['label']} "
                             f"({COMPARISON_TYPE_TITLE_SUFFIXES[comparison_type]})"
                         ),
                         "path": simulation["path"],
@@ -383,9 +387,9 @@ if area_np is not None:
                         "index": 1,
                         "source_index": two_sim_target.get("source_index", 1),
                     }
-                    self.array_metadata[two_sim_specs[comparison_type]["array_name"]] = (
-                        two_sim_specs[comparison_type]
-                    )
+                    self.array_metadata[
+                        two_sim_specs[comparison_type]["array_name"]
+                    ] = two_sim_specs[comparison_type]
 
             self.variable_view_specs[var_name] = {
                 "multi-sim": per_type_specs,
@@ -503,7 +507,6 @@ if area_np is not None:
             self.prog_filter.RequestInformationScript = ""
             self.prog_filter.RequestUpdateExtentScript = ""
             self.prog_filter.PythonPath = ""
-
 
             # Step 1: Extract and transform atmospheric data
             self.atmos_extract = EAMTransformAndExtract(  # noqa: F821

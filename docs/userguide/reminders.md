@@ -6,7 +6,7 @@
     a ^^new-viz^^ mode (for starting a new visualization) or
     a ^^resume^^ mode (for resuming an analysis). Further details can be found on
     the [toolbar description page](toolbar.md).
-     
+
 !!! tip "Tip: Connectivity File"
 
     Regardless of which mode is used, a connectivity file is needed
@@ -14,7 +14,7 @@
     Further details can be found on the documentation pages
     describing the [connectivity files](connectivity.md) and the
     [toolbar](toolbar.md).
-     
+
 !!! tip "Tip: The `LOAD VARIABLES` Button"
 
     Most buttons, sliders, and selection boxes in the GUI apply their effects
@@ -22,7 +22,7 @@
     selection: After variables are chosen for the first time following file load
     or after the selection is changed, the user ^^must^^ click the `LOAD VARIABLES`
     button in the [toolbar](toolbar.md) for the new selection to take effect.
-     
+
 !!! tip "Tip: Viewport Layout"
 
     The QuickView app is designed to present multiple variables simultaneously
@@ -45,4 +45,3 @@
     globe or region. This can be remedied by clicking the camera reset
     button at the right end of the [toolbar](toolbar.md). We are working on
     solving the display problem for future versions.
-

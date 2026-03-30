@@ -138,6 +138,7 @@ class EAMApp(TrameApp):
         jupyter_url_prefix = os.environ.get("JUPYTERHUB_SERVICE_PREFIX")
         if not jupyter_url_prefix:
             os.write(1, "tauri-client-ready\n".encode())
+
     # -------------------------------------------------------------------------
     # UI definition
     # -------------------------------------------------------------------------
@@ -461,7 +462,9 @@ class EAMApp(TrameApp):
                 "target", self.state.two_sim_test_simulation_file
             )
             self.state.comparison_mode = normalize_comparison_mode(
-                comparisons.get("mode", comparisons.get("strategy", self.state.comparison_mode))
+                comparisons.get(
+                    "mode", comparisons.get("strategy", self.state.comparison_mode)
+                )
             )
             raw_type = comparisons.get("type", comparisons.get("mode"))
             self.state.comparison_type = normalize_comparison_type(raw_type)
@@ -625,10 +628,7 @@ class EAMApp(TrameApp):
 
     @change("comparison_type")
     def _on_comparison_type_change(self, **_):
-        if (
-            self.state.comparison_mode != "multi-sim"
-            or not self.state.variables_loaded
-        ):
+        if self.state.comparison_mode != "multi-sim" or not self.state.variables_loaded:
             return
 
         camera = self.view_manager.get_active_camera()
@@ -648,10 +648,7 @@ class EAMApp(TrameApp):
 
     @change("selected_columns")
     def _on_selected_columns_change(self, **_):
-        if (
-            self.state.comparison_mode != "two-sim"
-            or not self.state.variables_loaded
-        ):
+        if self.state.comparison_mode != "two-sim" or not self.state.variables_loaded:
             return
         self._rebuild_active_layout(update_color=True)
 
@@ -684,7 +681,9 @@ class EAMApp(TrameApp):
         if comparison_changed:
             self._refresh_source_simulations()
             self.view_manager.reset_view_orders(self.selected_variables)
-            if self.state.variables_loaded and self._rebuild_active_layout(update_color=True):
+            if self.state.variables_loaded and self._rebuild_active_layout(
+                update_color=True
+            ):
                 return
             self.state.variables_loaded = False
             return

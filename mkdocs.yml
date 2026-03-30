@@ -6,16 +6,16 @@ plugins:
 nav:
   - Home: README.md
   - Install and Launch:
-      - For End Users:      setup/for_end_users.md
+      - For End Users: setup/for_end_users.md
       - For App Developers: setup/for_app_developers.md
   - User's Guide:
-      - Key Reminders:      userguide/reminders.md
+      - Key Reminders: userguide/reminders.md
       - Connectivity Files: userguide/connectivity.md
-      - Simulation Files:   userguide/data_requirements.md
-      - GUI Overview:       userguide/gui_overview.md
-      - Toolbar:            userguide/toolbar.md
-      - Control Panel:      userguide/control_panel.md
-      - Viewport:           userguide/viewport.md
+      - Simulation Files: userguide/data_requirements.md
+      - GUI Overview: userguide/gui_overview.md
+      - Toolbar: userguide/toolbar.md
+      - Control Panel: userguide/control_panel.md
+      - Viewport: userguide/viewport.md
   - Plans: future.md
 markdown_extensions:
   - attr_list

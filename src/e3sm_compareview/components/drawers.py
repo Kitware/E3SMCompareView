@@ -5,7 +5,6 @@ from trame.widgets import vuetify3 as v3
 from e3sm_compareview import __version__ as app_version
 from e3sm_compareview.assets import ASSETS
 from e3sm_compareview.components.drawer_utils import drawer_style
-from e3sm_compareview.components.simulation_selection import SimulationSelection
 from e3sm_quickview.components import css, tools
 from e3sm_quickview.utils import constants, js
 

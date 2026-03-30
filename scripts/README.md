@@ -24,8 +24,9 @@ This generates a standalone `COLORBAR_CACHE` payload you can use when updating
 
 ### release.sh
 
-Automates the release process for CompareView, including version bumping, tagging,
-and creating GitHub releases with auto-generated changelogs from git history.
+Automates the release process for CompareView, including version bumping,
+tagging, and creating GitHub releases with auto-generated changelogs from git
+history.
 
 **Usage:**
 

@@ -150,7 +150,9 @@ simulation_configs = simulation_configs.map((sim) =>
                                             ),
                                         )
                                     with v3.VCol(cols=6, md=3):
-                                        with v3.Template(v_if="comparison_mode === 'multi-sim'"):
+                                        with v3.Template(
+                                            v_if="comparison_mode === 'multi-sim'"
+                                        ):
                                             v3.VCheckbox(
                                                 model_value=(
                                                     "control_simulation_file === entry.path ? true : entry.include",

@@ -673,7 +673,8 @@ class ViewManager(TrameComponent):
                                         views_per_row = max(1, len(view_specs))
                                     group_cols = max(1, math.floor(12 / views_per_row))
                                     group_names = [
-                                        view_spec["array_name"] for view_spec in view_specs
+                                        view_spec["array_name"]
+                                        for view_spec in view_specs
                                     ]
                                     for view_spec in view_specs:
                                         view = self.get_view(view_spec, var_type)

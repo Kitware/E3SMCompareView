@@ -9,12 +9,11 @@
 - Constrain trame-dataclass version
   ([`d207e52`](https://github.com/Kitware/E3SMQuickCompare/commit/d207e52ce78156fbe4f9b26f7e31ad5d1e4259fa))
 
-
 ## v1.3.2 (2026-03-11)
 
 ### Bug Fixes
 
-- Correct pipline to remove divide by zero's
+- Correct pipeline to remove divide by zero's
   ([`f3785fa`](https://github.com/Kitware/E3SMQuickCompare/commit/f3785faf685b0a1a715ec2ac05dfa88d421500a1))
 
 - Update color bars to use latest quickview
@@ -28,14 +27,12 @@
 - Update conda recipe
   ([`0283386`](https://github.com/Kitware/E3SMQuickCompare/commit/0283386a4df08a59d2e0d2e58e0bc46324a09bf2))
 
-
 ## v1.3.1 (2026-03-10)
 
 ### Bug Fixes
 
 - **package**: Update conda env and numpy version
   ([`f188195`](https://github.com/Kitware/E3SMQuickCompare/commit/f188195242a1552a86a3114c4a28a002942a43d7))
-
 
 ## v1.3.0 (2026-03-09)
 
@@ -48,7 +45,6 @@
 
 - Clean comparison logic
   ([`b4ce9d9`](https://github.com/Kitware/E3SMQuickCompare/commit/b4ce9d9e9fe10e32a9a83d63bb89c741197e33c2))
-
 
 ## v1.2.2 (2026-03-03)
 
@@ -66,7 +62,6 @@
 
 - **name**: Rename compareview to quickcompare
   ([`718824d`](https://github.com/Kitware/E3SMQuickCompare/commit/718824ddd986c2171366f695c8eed9505e888c56))
-
 
 ## v1.0.0 (2026-01-26)
 
@@ -86,7 +81,6 @@
 
 - Automatically generate windows packages
   ([`1cfdb14`](https://github.com/Kitware/QuickView/commit/1cfdb14e7552413ef4e041911696fdc3f24816e9))
-
 
 ## v1.2.0 (2025-12-09)
 
@@ -120,9 +114,8 @@
 - Adding dimension matching for horizontal axis
   ([`4512933`](https://github.com/Kitware/QuickView/commit/45129338d52a9ee2778d7015e238432e623311d8))
 
-- Adding partial changes for supporing general ESM reader
+- Adding partial changes for supporting general ESM reader
   ([`552fbd9`](https://github.com/Kitware/QuickView/commit/552fbd940d0cc586666300a3ca9a2d2d1cf8e368))
-
 
 ## v1.1.1 (2025-10-27)
 
@@ -141,7 +134,6 @@
 
 - Remove packaging from manual step
   ([`70cf460`](https://github.com/Kitware/QuickView/commit/70cf460d6358bc7aa87b936284ebc7ba2a5ff1e5))
-
 
 ## v1.1.0 (2025-10-24)
 
@@ -274,7 +266,6 @@
 - **cleanup**: Gather js code into utils
   ([`dbc3cb2`](https://github.com/Kitware/QuickView/commit/dbc3cb2df39abec32c958085c495157f1fefff62))
 
-
 ## v1.0.2 (2025-09-16)
 
 ### Bug Fixes
@@ -310,7 +301,6 @@
 - Multiple features and fixes
   ([`da9d7d7`](https://github.com/Kitware/QuickView/commit/da9d7d794fd37ee6b4c49049b0f33f1ca33cc276))
 
-
 ## v1.0.1 (2025-08-28)
 
 ### Bug Fixes
@@ -334,14 +324,12 @@
 - Adding close button for views
   ([`18604bc`](https://github.com/Kitware/QuickView/commit/18604bc2bd658e2b3f420d9249387e62db29162f))
 
-
 ## v1.0.0 (2025-08-25)
 
 ### Bug Fixes
 
 - Adding updated logo
   ([`40d5e22`](https://github.com/Kitware/QuickView/commit/40d5e22c3506be1d279fe839610796445a856a00))
-
 
 ## v0.1.21 (2025-08-25)
 
@@ -430,7 +418,6 @@
 - Viewport description
   ([`fbd88e7`](https://github.com/Kitware/QuickView/commit/fbd88e75dae0847c9ac17c7bc5ff8a8dae2edc68))
 
-
 ## v0.1.20 (2025-08-24)
 
 ### Bug Fixes
@@ -447,7 +434,6 @@
 - Progress icon resize disable
   ([`d344235`](https://github.com/Kitware/QuickView/commit/d344235b7d8adc6122e40192d3bff8673ba605b5))
 
-
 ## v0.1.19 (2025-08-23)
 
 ### Bug Fixes
@@ -461,9 +447,7 @@
 - Loading bar and icon size
   ([`aafae33`](https://github.com/Kitware/QuickView/commit/aafae3377ed4e434726144a1738350b142bb69b5))
 
-
 ## v0.1.18 (2025-08-22)
-
 
 ## v0.1.17 (2025-08-22)
 
@@ -480,7 +464,6 @@
 
 - Usability fixes
   ([`25a9c30`](https://github.com/Kitware/QuickView/commit/25a9c3025f107623b2b5a28f6e139c790bd919a0))
-
 
 ## v0.1.16 (2025-08-21)
 
@@ -509,7 +492,6 @@
 - Updates on quick start, connectivity, etc. add page on plans
   ([`6e25333`](https://github.com/Kitware/QuickView/commit/6e253330c8b9e6b94f8198d936d8fed9ebae8c70))
 
-
 ## v0.1.15 (2025-08-21)
 
 ### Bug Fixes
@@ -517,7 +499,7 @@
 - Changing splash screen to white
   ([`59b943f`](https://github.com/Kitware/QuickView/commit/59b943fdb64614535fb485717f3971a7e9afa19a))
 
-- Clear varaible selection
+- Clear variable selection
   ([`1d02c67`](https://github.com/Kitware/QuickView/commit/1d02c67bd910e26e52802b049e19eb91ea8447f8))
 
 - Coloring of load data button
@@ -532,14 +514,12 @@
 - Usability changes
   ([`93392a3`](https://github.com/Kitware/QuickView/commit/93392a34b203b689b6ab32e686fec4e8314b7a69))
 
-
 ## v0.1.14 (2025-08-20)
 
 ### Bug Fixes
 
 - Camera reset logic to be less complicated
   ([`fc4247a`](https://github.com/Kitware/QuickView/commit/fc4247a3fe03bff31458ef0802d6250d31696d30))
-
 
 ## v0.1.13 (2025-08-18)
 
@@ -558,7 +538,6 @@
 
 - Refactor utilities classes
   ([`6f058a9`](https://github.com/Kitware/QuickView/commit/6f058a95a1809cc60a38b61064f3bab01e6dea53))
-
 
 ## v0.1.12 (2025-08-17)
 
@@ -579,7 +558,6 @@
 - Update dpi issues with packaged app
   ([`2270564`](https://github.com/Kitware/QuickView/commit/2270564d71157dd10f079937f44c37727acc006d))
 
-
 ## v0.1.11 (2025-08-15)
 
 ### Bug Fixes
@@ -594,7 +572,6 @@
 
 - New colormaps, splashscreen logos, and drop packaging tar.gz
   ([`ff034ea`](https://github.com/Kitware/QuickView/commit/ff034ea352ce2fdc9f33b53d9e8dc09bd2d4f718))
-
 
 ## v0.1.10 (2025-08-13)
 
@@ -611,7 +588,6 @@
 - Adding loading bar to splash screen
   ([`993c855`](https://github.com/Kitware/QuickView/commit/993c8553903448c8ac3cc202c45f35a6950279b2))
 
-
 ## v0.1.9 (2025-08-11)
 
 ### Bug Fixes
@@ -622,12 +598,9 @@
 - **optimize reader**: Optimize the EAM Slice Reader
   ([`c257aad`](https://github.com/Kitware/QuickView/commit/c257aad44932b2aa63fb826970f5b39d76e16ccd))
 
-
 ## v0.1.8 (2025-08-01)
 
-
 ## v0.1.7 (2025-08-01)
-
 
 ## v0.1.6 (2025-07-30)
 
@@ -635,7 +608,6 @@
 
 - **floating scalar bar**: Adding changes to make the scalar bar floating
   ([`7b6c699`](https://github.com/Kitware/QuickView/commit/7b6c6990c4a71eb6feb08eda6440d26753978c4f))
-
 
 ## v0.1.5 (2025-07-28)
 
@@ -649,9 +621,7 @@
 - Replace EventType enum with direct method calls for color settings
   ([`cf42dca`](https://github.com/Kitware/QuickView/commit/cf42dcad1b066a027c1a33d4cd50b02316d350ea))
 
-
 ## v0.1.4 (2025-07-28)
-
 
 ## v0.1.3 (2025-07-21)
 
@@ -659,7 +629,6 @@
 
 - Use unfiltered variable lists in load_variables to include all selections
   ([`d56ba31`](https://github.com/Kitware/QuickView/commit/d56ba3134973dadcea1fd62f4f1f39acabac34e9))
-
 
 ## v0.1.2 (2025-07-11)
 
@@ -675,7 +644,6 @@
 
 - Simplify grid layout tracking using variable names as keys
   ([`1c8b935`](https://github.com/Kitware/QuickView/commit/1c8b935969c65cd3c336b10ebaf6f103e8626a80))
-
 
 ## v0.1.1 (2025-07-09)
 
@@ -715,7 +683,6 @@
 
 - Remove create-release-pr workflow and clean up release.sh
   ([`422d483`](https://github.com/Kitware/QuickView/commit/422d48332faad82e21b2bd46ddb9955414fd2ed8))
-
 
 ## v0.1.0 (2025-07-09)
 

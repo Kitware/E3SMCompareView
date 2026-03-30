@@ -29,6 +29,7 @@ DEFAULT_STYLES = {
     "classes": "border-b-thin",
 }
 
+
 def to_kwargs(value):
     return {
         "v_show": js.is_active(value),
@@ -188,6 +189,7 @@ class Layout(html.Div):
                                         inline=True,
                                         classes="ml-6 mt-n1",
                                     )
+
 
 class Cropping(v3.VToolbar):
     def __init__(self):

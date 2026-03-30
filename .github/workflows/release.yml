@@ -1,6 +1,6 @@
 name: "Release"
 on:
-  workflow_dispatch:  # manually triggered
+  workflow_dispatch: # manually triggered
 
 env:
   # Many color libraries just need this to be set to any value, but at least
