@@ -631,8 +631,10 @@ class EAMApp(TrameApp):
         ):
             return
 
+        camera = self.view_manager.get_active_camera()
         self.view_manager.reset_view_orders(self.selected_variables)
         self._rebuild_active_layout(update_color=True)
+        self.view_manager.sync_active_views_to_camera(camera)
 
     @change("comparison_mode")
     def _on_comparison_mode_change(self, comparison_mode, **_):

@@ -498,6 +498,42 @@ class ViewManager(TrameComponent):
         for view in views:
             view.disable_render = False
 
+    def get_active_camera(self):
+        views = self._active_views()
+        if not views:
+            return None
+        camera = views[0].camera
+        return {
+            "position": camera.GetPosition(),
+            "focal_point": camera.GetFocalPoint(),
+            "view_up": camera.GetViewUp(),
+            "parallel_projection": camera.GetParallelProjection(),
+            "parallel_scale": camera.GetParallelScale(),
+            "view_angle": camera.GetViewAngle(),
+            "clipping_range": camera.GetClippingRange(),
+        }
+
+    def sync_active_views_to_camera(self, camera_state):
+        if not camera_state:
+            return
+        if self._camera_sync_in_progress:
+            return
+        self._camera_sync_in_progress = True
+
+        try:
+            for var_view in self._active_views():
+                cam = var_view.camera
+                cam.SetPosition(*camera_state["position"])
+                cam.SetFocalPoint(*camera_state["focal_point"])
+                cam.SetViewUp(*camera_state["view_up"])
+                cam.SetParallelProjection(camera_state["parallel_projection"])
+                cam.SetParallelScale(camera_state["parallel_scale"])
+                cam.SetViewAngle(camera_state["view_angle"])
+                cam.SetClippingRange(*camera_state["clipping_range"])
+                var_view.render()
+        finally:
+            self._camera_sync_in_progress = False
+
     def render(self):
         for view in self._active_views():
             view.render()
