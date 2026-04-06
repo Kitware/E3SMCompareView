@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.3.5 (2026-04-06)
+
+### Bug Fixes
+
+- **quickview**: Update code for vtk changes
+  ([`53bbd36`](https://github.com/Kitware/E3SMQuickCompare/commit/53bbd36045c975d000ceb1cc707f7f67ff1cdd45))
+
+
 ## v1.3.4 (2026-03-30)
 
 ### Bug Fixes
