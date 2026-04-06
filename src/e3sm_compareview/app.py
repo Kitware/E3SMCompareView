@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 
+from paraview import servermanager
+
 from trame.app import TrameApp, asynchronous, file_upload
 from trame.decorators import change, controller, life_cycle, trigger
 from trame.ui.vuetify3 import VAppLayout
@@ -735,8 +737,9 @@ class EAMApp(TrameApp):
         # Update avg computation
         # Get area variable to calculate weighted average
         data = self.source.views["atmosphere_data"]
+        vtk_data = servermanager.Fetch(data)
         self.state.fields_avgs = compute.extract_avgs(
-            data, self.selected_variable_names
+            vtk_data, self.selected_variable_names
         )
 
     @change(
@@ -766,8 +769,9 @@ class EAMApp(TrameApp):
         # Update avg computation
         # Get area variable to calculate weighted average
         data = self.source.views["atmosphere_data"]
+        vtk_data = servermanager.Fetch(data)
         self.state.fields_avgs = compute.extract_avgs(
-            data, self.selected_variable_names
+            vtk_data, self.selected_variable_names
         )
 
     def toggle_toolbar(self, toolbar_name=None):
