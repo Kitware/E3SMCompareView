@@ -252,13 +252,13 @@ class ComparisonMode(v3.VToolbar):
                             comparison_type, comparison_type.upper()
                         ),
                         size="small",
-                        variant=(
-                            f"comparison_type === '{comparison_type}' ? 'flat' : 'outlined'",
-                        ),
+                        variant="outlined",
                         color=(
                             f"comparison_type === '{comparison_type}' ? 'primary' : 'default'",
                         ),
-                        classes="mx-1 text-none",
+                        classes=(
+                            f"`mx-1 text-none ${{comparison_type === '{comparison_type}' ? '' : 'text-medium-emphasis'}}`",
+                        ),
                         click=f"comparison_type = '{comparison_type}'",
                     )
                 v3.VSpacer()
@@ -273,17 +273,15 @@ class ComparisonMode(v3.VToolbar):
                     v3.VBtn(
                         COMPARISON_TYPE_LABELS.get(comp_type, comp_type.upper()),
                         size="small",
-                        variant=(
-                            "selected_columns.includes('{0}') ? 'flat' : 'outlined'".format(
-                                comp_type
-                            ),
-                        ),
+                        variant="outlined",
                         color=(
                             "selected_columns.includes('{0}') ? 'primary' : 'default'".format(
                                 comp_type
                             ),
                         ),
-                        classes="mx-1 text-none",
+                        classes=(
+                            f"`mx-1 text-none ${{selected_columns.includes('{comp_type}') ? '' : 'text-medium-emphasis'}}`",
+                        ),
                         click=(
                             f"selected_columns.includes('{comp_type}') ? "
                             f"selected_columns = selected_columns.filter(c => c !== '{comp_type}') : "

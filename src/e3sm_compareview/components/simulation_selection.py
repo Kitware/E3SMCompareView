@@ -77,9 +77,33 @@ class SimulationSelection(v3.VNavigationDrawer):
                         mandatory=True,
                         density="compact",
                         divided=True,
+                        classes="w-100 d-flex",
+                        style="width: 100%;",
                     ):
-                        v3.VBtn("Two Sim", value="two-sim", classes="text-none")
-                        v3.VBtn("Multi Sim", value="multi-sim", classes="text-none")
+                        v3.VBtn(
+                            "Two Sim",
+                            value="two-sim",
+                            variant="outlined",
+                            color=(
+                                "comparison_mode === 'two-sim' ? 'primary' : 'default'",
+                            ),
+                            classes=(
+                                "`text-none ${comparison_mode === 'two-sim' ? '' : 'text-medium-emphasis'}`",
+                            ),
+                            style="flex: 1 1 0;",
+                        )
+                        v3.VBtn(
+                            "Multi Sim",
+                            value="multi-sim",
+                            variant="outlined",
+                            color=(
+                                "comparison_mode === 'multi-sim' ? 'primary' : 'default'",
+                            ),
+                            classes=(
+                                "`text-none ${comparison_mode === 'multi-sim' ? '' : 'text-medium-emphasis'}`",
+                            ),
+                            style="flex: 1 1 0;",
+                        )
 
                 with html.Div(v_if="simulation_configs.length === 0", classes="pa-4"):
                     html.Div(
@@ -135,13 +159,13 @@ simulation_configs = simulation_configs.map((sim) =>
                                             text=(
                                                 "control_simulation_file === entry.path ? 'Control' : 'Set control'",
                                             ),
-                                            variant=(
-                                                "control_simulation_file === entry.path ? 'flat' : 'outlined'",
-                                            ),
+                                            variant="outlined",
                                             color=(
                                                 "control_simulation_file === entry.path ? 'primary' : 'default'",
                                             ),
-                                            classes="text-none w-100",
+                                            classes=(
+                                                "`text-none w-100 ${control_simulation_file === entry.path ? '' : 'text-medium-emphasis'}`",
+                                            ),
                                             style="min-width: 112px;",
                                             size="small",
                                             click=(
@@ -174,13 +198,13 @@ simulation_configs = simulation_configs.map((sim) =>
                                                 text=(
                                                     "two_sim_test_simulation_file === entry.path ? 'Test' : 'Set test'",
                                                 ),
-                                                variant=(
-                                                    "two_sim_test_simulation_file === entry.path ? 'flat' : 'outlined'",
-                                                ),
+                                                variant="outlined",
                                                 color=(
                                                     "two_sim_test_simulation_file === entry.path ? 'primary' : 'default'",
                                                 ),
-                                                classes="text-none w-100",
+                                                classes=(
+                                                    "`text-none w-100 ${two_sim_test_simulation_file === entry.path ? '' : 'text-medium-emphasis'}`",
+                                                ),
                                                 style="min-width: 112px;",
                                                 size="small",
                                                 disabled=(
