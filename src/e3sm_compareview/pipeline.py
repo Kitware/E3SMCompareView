@@ -248,7 +248,7 @@ class EAMVisSource:
         return [timestep_values] if timestep_values is not None else []
 
     def _build_programmable_filter_script(self):
-        # Emit the control array plus one comparison array per selected simulation.
+        # Emit control/source arrays and derived comparison arrays per simulation.
         return f"""import numpy as np
 
 def _to_float_array(values, shape=None):
@@ -271,6 +271,7 @@ for var in vars:
     for sim_index, sim_input in enumerate(inputs[1:], start=1):
         sim_np = _to_float_array(sim_input.CellData[f"{{var}}"], ctrl_np.shape)
         output.CellData.append(sim_np, f'{{var}}__test__{{sim_index}}')
+        output.CellData.append(sim_np, f'{{var}}__source__{{sim_index}}')
 
         # Use guarded division to avoid runtime warnings for zero-valued slices.
         diff = sim_np - ctrl_np
@@ -331,13 +332,14 @@ if area_np is not None:
                 for index, simulation in enumerate(
                     self.simulation_configs[1:], start=1
                 ):
+                    is_source = comparison_type == "source"
                     comparison_spec = {
                         "array_name": self.comparison_array_name(
                             var_name, comparison_type, index
                         ),
                         "base_variable": var_name,
-                        "role": comparison_type,
-                        "metric": comparison_type,
+                        "role": "source" if is_source else comparison_type,
+                        "metric": "raw" if is_source else comparison_type,
                         "comparison_mode": "multi-sim",
                         "comparison_type": comparison_type,
                         "label": (

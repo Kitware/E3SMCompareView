@@ -84,7 +84,7 @@ class VariableView(TrameComponent):
         self.config.label = self.display_label
         self.name = f"view_{self.array_name}"
 
-        if self.role in ("control", "test"):
+        if self.role in ("control", "test", "source"):
             self.config.preset = "navia"
         elif self.role == "diff":
             self.config.preset = "Cool to Warm (Extended)"
@@ -235,6 +235,27 @@ class VariableView(TrameComponent):
 
     def _get_multi_sim_default_range(self):
         data_info = self.source.views["atmosphere_data"].GetCellDataInformation()
+        if self.comparison_type == "source":
+            ranges = []
+            for view_spec in self.source.get_view_specs(
+                self.base_variable,
+                "multi-sim",
+                "source",
+            ):
+                data_array = data_info.GetArray(view_spec["array_name"])
+                if not data_array:
+                    continue
+                data_range = data_array.GetRange()
+                if self._is_finite_range(data_range):
+                    ranges.append(data_range)
+
+            if ranges:
+                return (
+                    min(data_range[0] for data_range in ranges),
+                    max(data_range[1] for data_range in ranges),
+                )
+            return None
+
         if self.role != "control":
             max_abs = None
             for view_spec in self.source.get_view_specs(

@@ -1,14 +1,16 @@
 import re
 from pathlib import Path
 
-COMPARISON_TYPES = ("diff", "comp1", "comp2")
+COMPARISON_TYPES = ("source", "diff", "comp1", "comp2")
 COMPARISON_MODES = ("two-sim", "multi-sim")
 COMPARISON_TYPE_LABELS = {
+    "source": "Source",
     "diff": "Diff",
     "comp1": "Rel Diff (w.r.t. ctrl)",
     "comp2": "Rel Diff (w.r.t. mean)",
 }
 COMPARISON_TYPE_TITLE_SUFFIXES = {
+    "source": "source",
     "diff": "diff",
     "comp1": "rel diff w.r.t. ctrl",
     "comp2": "rel diff w.r.t. mean",
