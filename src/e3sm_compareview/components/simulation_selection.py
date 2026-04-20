@@ -11,6 +11,12 @@ SIMULATION_DRAG_HANDLE_EVENTS = """
     dragged_simulation_path = entry.path;
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', entry.path);
+
+    const row = event.currentTarget && event.currentTarget.closest('.simulation-entry-row');
+    if (row && event.dataTransfer && event.dataTransfer.setDragImage) {
+      const rowRect = row.getBoundingClientRect();
+      event.dataTransfer.setDragImage(row, 220, Math.round(rowRect.height / 2));
+    }
   },
   dragend: () => {
     dragged_simulation_path = '';
@@ -119,7 +125,7 @@ class SimulationSelection(v3.VNavigationDrawer):
                     with html.Div(
                         v_for="(entry, idx) in simulation_configs",
                         key="`${entry.path}-card`",
-                        classes="pb-2 d-flex align-center",
+                        classes="simulation-entry-row pb-2 d-flex align-center",
                         v_on=SIMULATION_DROP_EVENTS,
                     ):
                         with html.Div(
