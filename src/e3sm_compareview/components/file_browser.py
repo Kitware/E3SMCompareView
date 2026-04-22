@@ -415,13 +415,16 @@ class ParaViewFileBrowser(TrameComponent):
                         key="file",
                         style="display: inline-block;",
                     ):
-                        with v3.VChip(
-                            closable=True,
-                            click_close=(self.remove_simulation_file, "[file]"),
-                            classes="ma-1",
-                            size="small",
-                        ):
-                            html.Span("{{ file.split('/').pop() }}")
+                        with v3.VTooltip(text="Remove simulation"):
+                            with v3.Template(v_slot_activator="{ props }"):
+                                with v3.VChip(
+                                    v_bind="props",
+                                    closable=True,
+                                    click_close=(self.remove_simulation_file, "[file]"),
+                                    classes="ma-1",
+                                    size="small",
+                                ):
+                                    html.Span("{{ file.split('/').pop() }}")
 
                 html.Div(
                     "No simulation files selected",

@@ -73,10 +73,17 @@ class SimulationSelection(v3.VNavigationDrawer):
                     v3.VIcon("mdi-database-cog-outline", classes="ml-4 mr-2")
                     v3.VLabel("Simulation selection", classes="text-subtitle-2")
                     v3.VSpacer()
-                    html.Div(
-                        "{{ simulation_configs.length }} loaded",
-                        classes="text-caption mr-4",
-                    )
+                    with v3.VTooltip():
+                        with v3.Template(v_slot_activator="{ props }"):
+                            html.Div(
+                                "{{ simulation_configs.length }} loaded",
+                                v_bind="props",
+                                classes="text-caption mr-4",
+                            )
+                        html.Div(
+                            "{{ (() => { if (!simulation_configs.length) return 'Loaded simulations:\\nnone'; return `Loaded simulations:\\n${simulation_configs.map(sim => `${sim.label || sim.path.split('/').pop()}${sim.path === control_simulation_file ? ' (ctrl)' : ''}`).join('\\n')}`; })() }}",
+                            style="white-space: pre-line;",
+                        )
                 with html.Div(classes="px-3 py-2 border-b-thin"):
                     with v3.VBtnToggle(
                         v_model=("comparison_mode", "multi-sim"),
@@ -86,30 +93,40 @@ class SimulationSelection(v3.VNavigationDrawer):
                         classes="w-100 d-flex",
                         style="width: 100%;",
                     ):
-                        v3.VBtn(
-                            "Two Sim",
-                            value="two-sim",
-                            variant="outlined",
-                            color=(
-                                "comparison_mode === 'two-sim' ? 'primary' : 'default'",
-                            ),
-                            classes=(
-                                "`text-none ${comparison_mode === 'two-sim' ? '' : 'text-medium-emphasis'}`",
-                            ),
-                            style="flex: 1 1 0;",
-                        )
-                        v3.VBtn(
-                            "Multi Sim",
-                            value="multi-sim",
-                            variant="outlined",
-                            color=(
-                                "comparison_mode === 'multi-sim' ? 'primary' : 'default'",
-                            ),
-                            classes=(
-                                "`text-none ${comparison_mode === 'multi-sim' ? '' : 'text-medium-emphasis'}`",
-                            ),
-                            style="flex: 1 1 0;",
-                        )
+                        with v3.VTooltip(
+                            text="Compare two simulations (control/test)",
+                        ):
+                            with v3.Template(v_slot_activator="{ props }"):
+                                v3.VBtn(
+                                    "Two Sim",
+                                    v_bind="props",
+                                    value="two-sim",
+                                    variant="outlined",
+                                    color=(
+                                        "comparison_mode === 'two-sim' ? 'primary' : 'default'",
+                                    ),
+                                    classes=(
+                                        "`text-none ${comparison_mode === 'two-sim' ? '' : 'text-medium-emphasis'}`",
+                                    ),
+                                    style="flex: 1 1 0;",
+                                )
+                        with v3.VTooltip(
+                            text="Compare multiple simulations against control",
+                        ):
+                            with v3.Template(v_slot_activator="{ props }"):
+                                v3.VBtn(
+                                    "Multi Sim",
+                                    v_bind="props",
+                                    value="multi-sim",
+                                    variant="outlined",
+                                    color=(
+                                        "comparison_mode === 'multi-sim' ? 'primary' : 'default'",
+                                    ),
+                                    classes=(
+                                        "`text-none ${comparison_mode === 'multi-sim' ? '' : 'text-medium-emphasis'}`",
+                                    ),
+                                    style="flex: 1 1 0;",
+                                )
 
                 with html.Div(v_if="simulation_configs.length === 0", classes="pa-4"):
                     html.Div(
@@ -130,17 +147,19 @@ class SimulationSelection(v3.VNavigationDrawer):
                     ):
                         with html.Div(
                             draggable="true",
-                            title="Drag to reorder",
                             style="cursor: grab; user-select: none;",
                             classes="d-flex align-center justify-center mr-1",
                             v_on=SIMULATION_DRAG_HANDLE_EVENTS,
                         ):
-                            v3.VIcon(
-                                "mdi-drag-vertical-variant",
-                                size="small",
-                                color="default",
-                                classes="opacity-60",
-                            )
+                            with v3.VTooltip(text="Drag to reorder simulations"):
+                                with v3.Template(v_slot_activator="{ props }"):
+                                    v3.VIcon(
+                                        "mdi-drag-vertical-variant",
+                                        v_bind="props",
+                                        size="small",
+                                        color="default",
+                                        classes="opacity-60",
+                                    )
                         with v3.VCard(
                             variant="outlined",
                             classes="flex-grow-1",
@@ -161,63 +180,82 @@ simulation_configs = simulation_configs.map((sim) =>
                                             hide_details=True,
                                         )
                                     with v3.VCol(cols=6, md=3):
-                                        v3.VBtn(
+                                        with v3.VTooltip(
                                             text=(
-                                                "control_simulation_file === entry.path ? 'Control' : 'Set control'",
+                                                "control_simulation_file === entry.path ? 'Current control simulation' : 'Set this simulation as control'",
                                             ),
-                                            variant="outlined",
-                                            color=(
-                                                "control_simulation_file === entry.path ? 'primary' : 'default'",
-                                            ),
-                                            classes=(
-                                                "`text-none w-100 ${control_simulation_file === entry.path ? '' : 'text-medium-emphasis'}`",
-                                            ),
-                                            style="min-width: 112px;",
-                                            size="small",
-                                            click=(
-                                                self._on_control_selected,
-                                                "[entry.path]",
-                                            ),
-                                        )
+                                        ):
+                                            with v3.Template(v_slot_activator="{ props }"):
+                                                v3.VBtn(
+                                                    v_bind="props",
+                                                    text=(
+                                                        "control_simulation_file === entry.path ? 'Control' : 'Set control'",
+                                                    ),
+                                                    variant="outlined",
+                                                    color=(
+                                                        "control_simulation_file === entry.path ? 'primary' : 'default'",
+                                                    ),
+                                                    classes=(
+                                                        "`text-none w-100 ${control_simulation_file === entry.path ? '' : 'text-medium-emphasis'}`",
+                                                    ),
+                                                    style="min-width: 112px;",
+                                                    size="small",
+                                                    click=(
+                                                        self._on_control_selected,
+                                                        "[entry.path]",
+                                                    ),
+                                                )
                                     with v3.VCol(cols=6, md=3):
                                         with v3.Template(
                                             v_if="comparison_mode === 'multi-sim'"
                                         ):
-                                            v3.VCheckbox(
-                                                model_value=(
-                                                    "control_simulation_file === entry.path ? true : entry.include",
-                                                ),
-                                                update_modelValue="""
+                                            with v3.VTooltip(
+                                                text="Toggle simulation inclusion",
+                                            ):
+                                                with v3.Template(v_slot_activator="{ props }"):
+                                                    v3.VCheckbox(
+                                                        v_bind="props",
+                                                        model_value=(
+                                                            "control_simulation_file === entry.path ? true : entry.include",
+                                                        ),
+                                                        update_modelValue="""
 simulation_configs = simulation_configs.map((sim) =>
   sim.path === entry.path ? ({ ...sim, include: !!$event }) : sim
 );
 """,
-                                                label="Include",
-                                                density="compact",
-                                                hide_details=True,
-                                                disabled=(
-                                                    "control_simulation_file === entry.path",
-                                                ),
-                                            )
+                                                        label="Include",
+                                                        density="compact",
+                                                        hide_details=True,
+                                                        disabled=(
+                                                            "control_simulation_file === entry.path",
+                                                        ),
+                                                    )
                                         with v3.Template(v_else=True):
-                                            v3.VBtn(
+                                            with v3.VTooltip(
                                                 text=(
-                                                    "two_sim_test_simulation_file === entry.path ? 'Test' : 'Set test'",
+                                                    "control_simulation_file === entry.path ? 'Control run cannot also be test' : (two_sim_test_simulation_file === entry.path ? 'Current test simulation' : 'Set this simulation as test')",
                                                 ),
-                                                variant="outlined",
-                                                color=(
-                                                    "two_sim_test_simulation_file === entry.path ? 'primary' : 'default'",
-                                                ),
-                                                classes=(
-                                                    "`text-none w-100 ${two_sim_test_simulation_file === entry.path ? '' : 'text-medium-emphasis'}`",
-                                                ),
-                                                style="min-width: 112px;",
-                                                size="small",
-                                                disabled=(
-                                                    "control_simulation_file === entry.path",
-                                                ),
-                                                click="two_sim_test_simulation_file = entry.path",
-                                            )
+                                            ):
+                                                with v3.Template(v_slot_activator="{ props }"):
+                                                    v3.VBtn(
+                                                        v_bind="props",
+                                                        text=(
+                                                            "two_sim_test_simulation_file === entry.path ? 'Test' : 'Set test'",
+                                                        ),
+                                                        variant="outlined",
+                                                        color=(
+                                                            "two_sim_test_simulation_file === entry.path ? 'primary' : 'default'",
+                                                        ),
+                                                        classes=(
+                                                            "`text-none w-100 ${two_sim_test_simulation_file === entry.path ? '' : 'text-medium-emphasis'}`",
+                                                        ),
+                                                        style="min-width: 112px;",
+                                                        size="small",
+                                                        disabled=(
+                                                            "control_simulation_file === entry.path",
+                                                        ),
+                                                        click="two_sim_test_simulation_file = entry.path",
+                                                    )
                                 html.Div(
                                     "{{ entry.path }}",
                                     classes="text-caption text-medium-emphasis mt-2",

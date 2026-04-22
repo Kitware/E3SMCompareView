@@ -29,6 +29,24 @@ DEFAULT_STYLES = {
     "classes": "border-b-thin",
 }
 
+COMPARISON_TYPE_TOOLTIPS = {
+    "source": "Source data (no comparison)",
+    "diff": "Difference: comparison - control",
+    "comp1": "Relative difference w.r.t. control: (comparison - control) / control",
+    "comp2": (
+        "Relative difference w.r.t. mean: "
+        "2 * (comparison - control) / (comparison + control)"
+    ),
+}
+
+COLUMN_TOOLTIPS = {
+    "ctrl": "Control simulation values",
+    "test": "Test simulation values",
+    "diff": "Difference: test - control",
+    "comp1": "Relative difference w.r.t. control: (test - control) / control",
+    "comp2": "Relative difference w.r.t. mean: 2 * (test - control) / (test + control)",
+}
+
 
 def to_kwargs(value):
     return {
@@ -247,47 +265,72 @@ class ComparisonMode(v3.VToolbar):
             with v3.Template(v_if="comparison_mode === 'multi-sim'"):
                 v3.VLabel("Comparison", classes="text-subtitle-2 px-4")
                 for comparison_type in COMPARISON_TYPES:
-                    v3.VBtn(
-                        COMPARISON_TYPE_LABELS.get(
-                            comparison_type, comparison_type.upper()
+                    with v3.VTooltip(
+                        text=COMPARISON_TYPE_TOOLTIPS.get(
+                            comparison_type,
+                            COMPARISON_TYPE_LABELS.get(
+                                comparison_type, comparison_type.upper()
+                            ),
                         ),
-                        size="small",
-                        variant="outlined",
-                        color=(
-                            f"comparison_type === '{comparison_type}' ? 'primary' : 'default'",
-                        ),
-                        classes=(
-                            f"`mx-1 text-none ${{comparison_type === '{comparison_type}' ? '' : 'text-medium-emphasis'}}`",
-                        ),
-                        click=f"comparison_type = '{comparison_type}'",
-                    )
+                    ):
+                        with v3.Template(v_slot_activator="{ props }"):
+                            v3.VBtn(
+                                COMPARISON_TYPE_LABELS.get(
+                                    comparison_type, comparison_type.upper()
+                                ),
+                                v_bind="props",
+                                size="small",
+                                variant="outlined",
+                                color=(
+                                    f"comparison_type === '{comparison_type}' ? 'primary' : 'default'",
+                                ),
+                                classes=(
+                                    f"`mx-1 text-none ${{comparison_type === '{comparison_type}' ? '' : 'text-medium-emphasis'}}`",
+                                ),
+                                click=f"comparison_type = '{comparison_type}'",
+                            )
                 v3.VSpacer()
-                html.Div(
-                    "{{ Math.max(0, simulation_configs.filter(sim => sim.path !== control_simulation_file && sim.include).length) }} comparisons",
-                    classes="text-caption mr-4",
-                )
+                with v3.VTooltip():
+                    with v3.Template(v_slot_activator="{ props }"):
+                        v3.VLabel(
+                            "{{ Math.max(0, simulation_configs.filter(sim => sim.path !== control_simulation_file && sim.include).length) }} comparisons",
+                            v_bind="props",
+                            classes="text-caption mr-4",
+                        )
+                    html.Div(
+                        "{{ (() => { const included = simulation_configs.filter(sim => sim.path === control_simulation_file || sim.include); if (!included.length) return 'Included simulations:\\nnone'; return `Included simulations:\\n${included.map(sim => `${sim.label || sim.path.split('/').pop()}${sim.path === control_simulation_file ? ' (ctrl)' : ''}`).join('\\n')}`; })() }}",
+                        style="white-space: pre-line;",
+                    )
 
             with v3.Template(v_else=True):
                 v3.VLabel("Columns", classes="text-subtitle-2 px-4")
                 for comp_type in ["ctrl", "test", "diff", "comp1", "comp2"]:
-                    v3.VBtn(
-                        COMPARISON_TYPE_LABELS.get(comp_type, comp_type.upper()),
-                        size="small",
-                        variant="outlined",
-                        color=(
-                            "selected_columns.includes('{0}') ? 'primary' : 'default'".format(
-                                comp_type
-                            ),
+                    with v3.VTooltip(
+                        text=COLUMN_TOOLTIPS.get(
+                            comp_type,
+                            COMPARISON_TYPE_LABELS.get(comp_type, comp_type.upper()),
                         ),
-                        classes=(
-                            f"`mx-1 text-none ${{selected_columns.includes('{comp_type}') ? '' : 'text-medium-emphasis'}}`",
-                        ),
-                        click=(
-                            f"selected_columns.includes('{comp_type}') ? "
-                            f"selected_columns = selected_columns.filter(c => c !== '{comp_type}') : "
-                            f"selected_columns = [...selected_columns, '{comp_type}']"
-                        ),
-                    )
+                    ):
+                        with v3.Template(v_slot_activator="{ props }"):
+                            v3.VBtn(
+                                COMPARISON_TYPE_LABELS.get(comp_type, comp_type.upper()),
+                                v_bind="props",
+                                size="small",
+                                variant="outlined",
+                                color=(
+                                    "selected_columns.includes('{0}') ? 'primary' : 'default'".format(
+                                        comp_type
+                                    ),
+                                ),
+                                classes=(
+                                    f"`mx-1 text-none ${{selected_columns.includes('{comp_type}') ? '' : 'text-medium-emphasis'}}`",
+                                ),
+                                click=(
+                                    f"selected_columns.includes('{comp_type}') ? "
+                                    f"selected_columns = selected_columns.filter(c => c !== '{comp_type}') : "
+                                    f"selected_columns = [...selected_columns, '{comp_type}']"
+                                ),
+                            )
                 v3.VSpacer()
                 v3.VBtn(
                     "Show all",
