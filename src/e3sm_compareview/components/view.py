@@ -125,53 +125,59 @@ def create_bottom_bar(config, update_color_preset):
                     with v3.VCardItem(classes="py-0 px-2"):
                         with html.Div(classes="d-flex align-center"):
                             v3.VIconBtn(
-                                raw_attrs=[
-                                    '''v-tooltip:bottom="config.color_blind ? 'Colorblind safe presets' : 'All color presets'"'''
-                                ],
+                                v_tooltip_bottom=(
+                                    "config.color_blind ? 'Toggle for all color presets' : 'Toggle for colorblind safe color presets'",
+                                ),
                                 icon=(
                                     "config.color_blind ? 'mdi-shield-check-outline' : 'mdi-palette'",
                                 ),
                                 click="config.color_blind = !config.color_blind",
                                 size="small",
-                                text="Colorblind safe",
+                                text=(
+                                    "config.color_blind ? 'Colorblind Safe' : 'All Colors'",
+                                ),
                                 variant="text",
                             )
                             v3.VIconBtn(
-                                raw_attrs=[
-                                    '''v-tooltip:bottom="config.invert ? 'Inverted preset' : 'Normal preset'"'''
-                                ],
+                                v_tooltip_bottom=(
+                                    "config.invert ? 'Toggle to normal preset' : 'Toggle to inverted preset'",
+                                ),
                                 icon=(
                                     "config.invert ? 'mdi-invert-colors' : 'mdi-invert-colors-off'",
                                 ),
                                 click="config.invert = !config.invert",
                                 size="small",
-                                text="Invert",
+                                text=(
+                                    "config.invert ? 'Inverted Preset' : 'Normal Preset'",
+                                ),
                                 variant="text",
                             )
                             v3.VIconBtn(
-                                raw_attrs=[
-                                    '''v-tooltip:bottom="config.use_log_scale ? 'Use log scale' : 'Use linear scale'"'''
-                                ],
+                                v_tooltip_bottom=(
+                                    "config.use_log_scale ? 'Toggle to linear scale' : 'Toggle to log scale'",
+                                ),
                                 icon=(
                                     "config.use_log_scale ? 'mdi-math-log' : 'mdi-stairs'",
                                 ),
                                 click="config.use_log_scale = !config.use_log_scale",
                                 size="small",
                                 text=(
-                                    "config.use_log_scale ? 'Log scale' : 'Linear scale'",
+                                    "config.use_log_scale ? 'Log Scale' : 'Linear Scale'",
                                 ),
                                 variant="text",
                             )
                             v3.VIconBtn(
-                                raw_attrs=[
-                                    '''v-tooltip:bottom="config.override_range ? 'Use custom range' : 'Use data range'"'''
-                                ],
+                                v_tooltip_bottom=(
+                                    "config.override_range ? 'Toggle to use data range' : 'Toggle to use custom range'",
+                                ),
                                 icon=(
                                     "config.override_range ? 'mdi-arrow-expand-horizontal' : 'mdi-pencil'",
                                 ),
                                 click="config.override_range = !config.override_range",
                                 size="small",
-                                text="Use data range",
+                                text=(
+                                    "config.override_range ? 'Custom Range' : 'Data Range'",
+                                ),
                                 variant="text",
                             )
 

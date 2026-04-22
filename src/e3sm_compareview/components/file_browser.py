@@ -317,18 +317,24 @@ class ParaViewFileBrowser(TrameComponent):
         with v3.VCard(rounded="lg"):
             with v3.VCardTitle("File loading", classes="d-flex align-center px-3"):
                 v3.VSpacer()
-                v3.VBtn(
-                    icon="mdi-home",
-                    variant="flat",
-                    size="small",
-                    click=self.goto_home,
-                )
-                v3.VBtn(
-                    icon="mdi-folder-upload-outline",
-                    variant="flat",
-                    size="small",
-                    click=self.goto_parent,
-                )
+                with v3.VTooltip(text="Go to launched directory"):
+                    with v3.Template(v_slot_activator="{ props }"):
+                        v3.VBtn(
+                            v_bind="props",
+                            icon="mdi-home",
+                            variant="flat",
+                            size="small",
+                            click=self.goto_home,
+                        )
+                with v3.VTooltip(text="Go up a directory"):
+                    with v3.Template(v_slot_activator="{ props }"):
+                        v3.VBtn(
+                            v_bind="props",
+                            icon="mdi-folder-upload-outline",
+                            variant="flat",
+                            size="small",
+                            click=self.goto_parent,
+                        )
                 v3.VTextField(
                     v_model=self.name("filter"),
                     hide_details=True,
@@ -436,59 +442,79 @@ class ParaViewFileBrowser(TrameComponent):
 
             v3.VDivider()
             with v3.VCardActions(classes="pa-3"):
-                v3.VBtn(
-                    classes="text-none",
-                    variant="tonal",
-                    text="Add Simulation",
-                    prepend_icon="mdi-database-plus",
-                    disabled=(
-                        f"{self.name('listing')}[{self.name('active')}]?.type !== 'file'",
-                    ),
-                    click=self.add_simulation_file,
-                )
-                v3.VBtn(
-                    classes="text-none",
-                    text="Connectivity",
-                    variant="tonal",
-                    prepend_icon="mdi-vector-polyline-plus",
-                    disabled=(
-                        f"{self.name('listing')}[{self.name('active')}]?.type !== 'file'",
-                    ),
-                    click=self.set_data_connectivity,
-                )
-                v3.VBtn(
-                    classes="text-none",
-                    text="Reset",
-                    variant="tonal",
-                    prepend_icon="mdi-close-octagon-outline",
-                    click=f"{self.name('data_connectivity')}='';{self.name('data_simulation')}='';{self.name('data_simulation_files')}=[];{self.name('error')}=false",
-                )
+                with v3.VTooltip(text="Add selected file to simulation list"):
+                    with v3.Template(v_slot_activator="{ props }"):
+                        v3.VBtn(
+                            v_bind="props",
+                            classes="text-none",
+                            variant="tonal",
+                            text="Add Simulation",
+                            prepend_icon="mdi-database-plus",
+                            disabled=(
+                                f"{self.name('listing')}[{self.name('active')}]?.type !== 'file'",
+                            ),
+                            click=self.add_simulation_file,
+                        )
+                with v3.VTooltip(text="Set selected file as connectivity file"):
+                    with v3.Template(v_slot_activator="{ props }"):
+                        v3.VBtn(
+                            v_bind="props",
+                            classes="text-none",
+                            text="Connectivity",
+                            variant="tonal",
+                            prepend_icon="mdi-vector-polyline-plus",
+                            disabled=(
+                                f"{self.name('listing')}[{self.name('active')}]?.type !== 'file'",
+                            ),
+                            click=self.set_data_connectivity,
+                        )
+                with v3.VTooltip(text="Clear selected files"):
+                    with v3.Template(v_slot_activator="{ props }"):
+                        v3.VBtn(
+                            v_bind="props",
+                            classes="text-none",
+                            text="Reset",
+                            variant="tonal",
+                            prepend_icon="mdi-close-octagon-outline",
+                            click=f"{self.name('data_connectivity')}='';{self.name('data_simulation')}='';{self.name('data_simulation_files')}=[];{self.name('error')}=false",
+                        )
                 v3.VSpacer()
-                v3.VBtn(
-                    border=True,
-                    classes="text-none",
-                    color="surface",
-                    text="Cancel",
-                    variant="flat",
-                    click=self.cancel,
-                )
-                v3.VBtn(
-                    disabled=(f"!{self.name('is_state_file')}",),
-                    loading=(self.name("state_loading"), False),
-                    classes="text-none",
-                    color="primary",
-                    text="Import state file",
-                    variant="flat",
-                    click=self.import_state_file,
-                )
-                v3.VBtn(
-                    classes="text-none",
-                    color=(f"{self.name('error')} ? 'error' : 'primary'",),
-                    text="Load files",
-                    variant="flat",
-                    disabled=(
-                        f"{self.name('data_simulation_files')}.length === 0 || !{self.name('data_connectivity')} || {self.name('error')}",
-                    ),
-                    loading=(self.name("loading"), False),
-                    click=self.load_data_files,
-                )
+                with v3.VTooltip(text="Cancel file loading"):
+                    with v3.Template(v_slot_activator="{ props }"):
+                        v3.VBtn(
+                            v_bind="props",
+                            border=True,
+                            classes="text-none",
+                            color="surface",
+                            text="Cancel",
+                            variant="flat",
+                            click=self.cancel,
+                        )
+                with v3.VTooltip(text="Import previous state file"):
+                    with v3.Template(v_slot_activator="{ props }"):
+                        v3.VBtn(
+                            v_bind="props",
+                            disabled=(f"!{self.name('is_state_file')}",),
+                            loading=(self.name("state_loading"), False),
+                            classes="text-none",
+                            color="primary",
+                            text="Import state file",
+                            variant="flat",
+                            click=self.import_state_file,
+                        )
+                with v3.VTooltip(
+                    text="Load selected simulation and connectivity files"
+                ):
+                    with v3.Template(v_slot_activator="{ props }"):
+                        v3.VBtn(
+                            v_bind="props",
+                            classes="text-none",
+                            color=(f"{self.name('error')} ? 'error' : 'primary'",),
+                            text="Load files",
+                            variant="flat",
+                            disabled=(
+                                f"{self.name('data_simulation_files')}.length === 0 || !{self.name('data_connectivity')} || {self.name('error')}",
+                            ),
+                            loading=(self.name("loading"), False),
+                            click=self.load_data_files,
+                        )
