@@ -1,5 +1,7 @@
 import math
 
+import numpy as np
+
 from trame.app import TrameComponent, dataclass
 from trame.ui.html import DivLayout
 from trame.widgets import paraview as pvw, vuetify3 as v3, client, html
@@ -44,13 +46,153 @@ def lut_name(element):
     return element.get("name").lower()
 
 
+def get_nice_ticks(vmin, vmax, n, scale="linear"):
+    """Compute nicely spaced tick values for a given range and scale."""
+
+    def snap(val):
+        if np.isclose(val, 0, atol=1e-12):
+            return 0.0
+        sign = np.sign(val)
+        val_abs = abs(val)
+        mag = 10 ** np.floor(np.log10(val_abs))
+        residual = val_abs / mag
+        nice_steps = np.array([1.0, 2.0, 5.0, 10.0])
+        best_step = nice_steps[np.abs(nice_steps - residual).argmin()]
+        return sign * best_step * mag
+
+    if scale == "linear":
+        raw_ticks = np.linspace(vmin, vmax, n)
+    elif scale == "log":
+        safe_vmin = max(vmin, 1e-15)
+        safe_vmax = max(vmax, 1e-14)
+        start_exp = int(np.floor(np.log10(safe_vmin)))
+        stop_exp = int(np.ceil(np.log10(safe_vmax)))
+        powers = [
+            10.0**e
+            for e in range(start_exp, stop_exp + 1)
+            if safe_vmin <= 10.0**e <= safe_vmax
+        ]
+        if len(powers) < 2:
+            raw_ticks = np.geomspace(safe_vmin, safe_vmax, n)
+        else:
+            raw_ticks = np.array(powers)
+    elif scale == "symlog":
+
+        def transform(x, threshold):
+            return np.sign(x) * np.log10(np.abs(x) / threshold + 1)
+
+        def inverse(y, threshold):
+            return np.sign(y) * threshold * (10 ** np.abs(y) - 1)
+
+        linthresh = max(abs(vmin), abs(vmax)) * 1e-2
+        if linthresh == 0:
+            linthresh = 1.0
+        t_min, t_max = transform(vmin, linthresh), transform(vmax, linthresh)
+        t_ticks = np.linspace(t_min, t_max, n)
+        raw_ticks = inverse(t_ticks, linthresh)
+    else:
+        raw_ticks = np.linspace(vmin, vmax, n)
+
+    nice_ticks = np.array([snap(t) for t in raw_ticks])
+
+    if vmin <= 0 <= vmax and scale != "log":
+        idx = np.abs(nice_ticks).argmin()
+        nice_ticks[idx] = 0.0
+
+    return np.unique(np.sort(nice_ticks))
+
+
+def format_tick(val):
+    """Format a tick value for compact colorbar display."""
+    if np.isclose(val, 0, atol=1e-12):
+        return "0"
+
+    val_abs = abs(val)
+    log10 = np.log10(val_abs)
+
+    if np.isclose(log10, np.round(log10), atol=1e-12):
+        exponent = int(np.round(log10))
+        sign = "-" if val < 0 else ""
+        if exponent == 0:
+            return f"{sign}1"
+        if exponent == 1:
+            return f"{sign}10"
+        return f"{sign}10^{exponent}"
+
+    if val_abs >= 1000 or val_abs <= 0.01:
+        return f"{val:.1e}"
+    return f"{int(val) if val == int(val) else val:.1f}"
+
+
+def tick_contrast_color(r, g, b):
+    """Return '#fff' or '#000' for best contrast against the given RGB color."""
+    luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return "#000" if luminance > 0.45 else "#fff"
+
+
+def compute_color_ticks(vmin, vmax, scale="linear", n=5, min_gap=7, edge_margin=3):
+    """Compute display ticks for the LUT preview colorbar."""
+    if vmin >= vmax:
+        return []
+
+    raw_n = n if scale == "linear" else n * 2
+    ticks = get_nice_ticks(vmin, vmax, raw_n, scale)
+    data_range = vmax - vmin
+
+    candidates = []
+    has_zero = False
+    for tick_value in ticks:
+        val = float(tick_value)
+        pos = (val - vmin) / data_range * 100
+        if edge_margin <= pos <= (100 - edge_margin):
+            is_zero = np.isclose(val, 0, atol=1e-12)
+            if is_zero:
+                has_zero = True
+            candidates.append(
+                {
+                    "position": round(pos, 2),
+                    "label": format_tick(val),
+                    "priority": is_zero,
+                }
+            )
+
+    if not has_zero and scale != "log":
+        zero_pos = (0.0 - vmin) / data_range * 100
+        if 0 <= zero_pos <= 100:
+            tick = {"position": round(zero_pos, 2), "label": "0", "priority": True}
+            inserted = False
+            for i, candidate in enumerate(candidates):
+                if tick["position"] <= candidate["position"]:
+                    candidates.insert(i, tick)
+                    inserted = True
+                    break
+            if not inserted:
+                candidates.append(tick)
+
+    result = []
+    for tick in candidates:
+        is_priority = tick.get("priority", False)
+        if is_priority:
+            if result and (tick["position"] - result[-1]["position"]) < min_gap:
+                if not result[-1].get("priority", False):
+                    result.pop()
+            result.append(tick)
+        elif not result or (tick["position"] - result[-1]["position"]) >= min_gap:
+            result.append(tick)
+
+    for tick in result:
+        tick.pop("priority", None)
+    return result
+
+
 class ViewConfiguration(dataclass.StateDataModel):
     variable: str = dataclass.Sync(str)
+    base_variable: str = dataclass.Sync(str, "")
     label: str = dataclass.Sync(str, "")
-    preset: str = dataclass.Sync(str, "Inferno (matplotlib)")
+    preset: str = dataclass.Sync(str, "BuGnYl")
     invert: bool = dataclass.Sync(bool, False)
     color_blind: bool = dataclass.Sync(bool, False)
-    use_log_scale: bool = dataclass.Sync(bool, False)
+    use_log_scale: str = dataclass.Sync(str, "linear")
     color_value_min: str = dataclass.Sync(str, "0")
     color_value_max: str = dataclass.Sync(str, "1")
     color_value_min_valid: bool = dataclass.Sync(bool, True)
@@ -66,6 +208,8 @@ class ViewConfiguration(dataclass.StateDataModel):
     search: str | None = dataclass.Sync(str)
     n_colors: int = dataclass.Sync(int, 255)
     lut_img: str = dataclass.Sync(str)
+    color_ticks: list = dataclass.Sync(list, list)
+    effective_color_range: list[float] = dataclass.Sync(tuple[float, float], (0, 1))
 
 
 class VariableView(TrameComponent):
@@ -81,6 +225,7 @@ class VariableView(TrameComponent):
         self.display_label = view_spec["label"]
         self.variable_type = variable_type
         self.config = ViewConfiguration(server, variable=self.array_name)
+        self.config.base_variable = self.base_variable
         self.config.label = self.display_label
         self.name = f"view_{self.array_name}"
 
@@ -161,6 +306,7 @@ class VariableView(TrameComponent):
         self.comparison_mode = view_spec.get("comparison_mode", "multi-sim")
         self.comparison_type = view_spec.get("comparison_type", "diff")
         self.display_label = view_spec["label"]
+        self.config.base_variable = self.base_variable
         self.config.label = self.display_label
 
     def render(self):
@@ -182,22 +328,104 @@ class VariableView(TrameComponent):
         self.ctx[self.name].update()
 
     def update_color_preset(self, name, invert, log_scale, n_colors=255):
+        if log_scale is True:
+            scale_mode = "log"
+        elif log_scale is False:
+            scale_mode = "linear"
+        else:
+            scale_mode = log_scale
+
+        if scale_mode not in {"linear", "log", "symlog"}:
+            scale_mode = "linear"
+
         self.config.preset = name
+        if self.config.use_log_scale != scale_mode:
+            self.config.use_log_scale = scale_mode
+
+        # Apply linear first, then scale transform.
+        self._apply_linear_to_lut(invert)
+        self.lut.RescaleTransferFunction(*self.config.color_range)
+
+        if scale_mode == "log":
+            self._apply_log_to_lut()
+        elif scale_mode == "symlog":
+            self._apply_symlog_to_lut()
+
+        if n_colors is not None:
+            self.lut.NumberOfTableValues = n_colors
+
+        ctf = self.lut.GetClientSideObject()
+        self.config.effective_color_range = ctf.GetRange()
+        self.config.lut_img = lut_to_img(self.lut)
+        self._compute_ticks()
+
+        self.render()
+
+    def _apply_linear_to_lut(self, invert=False):
         self.lut.UseLogScale = 0
         self.lut.ApplyPreset(self.config.preset, True)
         if invert:
             self.lut.InvertTransferFunction()
 
-        if log_scale:
-            self.lut.MapControlPointsToLogSpace()
-            self.lut.UseLogScale = 1
+    def _apply_log_to_lut(self):
+        ctf = self.lut.GetClientSideObject()
+        x_min, x_max = ctf.GetRange()
+        if x_max <= 0:
+            return
+        if x_min <= 0:
+            x_min = x_max * 1e-6
+            self.lut.RescaleTransferFunction(x_min, x_max)
+        self.lut.MapControlPointsToLogSpace()
+        self.lut.UseLogScale = 1
 
-        if n_colors is not None:
-            self.lut.NumberOfTableValues = n_colors
+    def _apply_symlog_to_lut(
+        self, linthresh=None, linscale=1.0, base=10, n_samples=256
+    ):
+        ctf = self.lut.GetClientSideObject()
+        x_min, x_max = ctf.GetRange()
+        data_range = x_max - x_min
+        if data_range == 0:
+            return
 
-        self.config.lut_img = lut_to_img(self.lut)
+        if linthresh is None:
+            linthresh = max(abs(x_min), abs(x_max)) * 1e-2
+            if linthresh == 0:
+                linthresh = 1.0
 
-        self.render()
+        log_base = np.log(base)
+        linscale_adj = linscale / (1.0 - base**-1)
+
+        def symlog(x):
+            abs_x = np.abs(x)
+            safe_abs = np.maximum(abs_x, linthresh)
+            return np.where(
+                abs_x <= linthresh,
+                x * linscale_adj,
+                np.sign(x)
+                * linthresh
+                * (linscale_adj + np.log(safe_abs / linthresh) / log_base),
+            )
+
+        rgb = [0.0, 0.0, 0.0]
+        s_min = symlog(x_min)
+        s_max = symlog(x_max)
+        s_range = s_max - s_min
+        if s_range == 0:
+            return
+
+        new_rgb_points = []
+        for i in range(n_samples):
+            t = i / (n_samples - 1)
+            x_data = x_min + t * data_range
+            s_val = symlog(x_data)
+            s_t = (s_val - s_min) / s_range
+            x_lookup = x_min + s_t * data_range
+            ctf.GetColor(x_lookup, rgb)
+            new_rgb_points.extend(
+                [float(x_data), float(rgb[0]), float(rgb[1]), float(rgb[2])]
+            )
+
+        self.lut.RGBPoints = new_rgb_points
 
     def color_range_str_to_float(self, color_value_min, color_value_max):
         try:
@@ -376,7 +604,38 @@ class VariableView(TrameComponent):
                 self.config.color_value_min_valid = True
                 self.config.color_value_max_valid = True
                 self.lut.RescaleTransferFunction(*data_range)
-        self.render()
+        self.update_color_preset(
+            self.config.preset,
+            self.config.invert,
+            self.config.use_log_scale,
+            self.config.n_colors,
+        )
+
+    def _compute_ticks(self):
+        vmin, vmax = self.config.effective_color_range
+        ticks = compute_color_ticks(vmin, vmax, scale=self.config.use_log_scale, n=5)
+
+        rgb_points = self.lut.RGBPoints
+        if len(rgb_points) < 4:
+            self.config.color_ticks = []
+            return
+
+        ctf = self.lut.GetClientSideObject()
+        rgb = [0.0, 0.0, 0.0]
+        img_min = rgb_points[0]
+        img_max = rgb_points[-4]
+        img_range = img_max - img_min
+        if img_range == 0:
+            self.config.color_ticks = []
+            return
+
+        for tick in ticks:
+            t = tick["position"] / 100.0
+            value = img_min + t * img_range
+            ctf.GetColor(value, rgb)
+            tick["color"] = tick_contrast_color(rgb[0], rgb[1], rgb[2])
+
+        self.config.color_ticks = ticks
 
     def _build_ui(self):
         with DivLayout(
@@ -397,11 +656,26 @@ class VariableView(TrameComponent):
                 ):
                     tview.create_size_menu(self.name, self.config)
                     with self.config.provide_as("config"):
-                        html.Div(
+                        with html.Div(
                             "{{ config.label }}",
-                            classes="text-subtitle-2 pr-2",
-                            style="user-select: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;",
-                        )
+                            classes="text-subtitle-2 pr-2 text-truncate",
+                            style="user-select: none; min-width: 0;",
+                            title=("config.label",),
+                        ):
+                            with v3.VMenu(activator="parent"):
+                                with v3.VList(
+                                    density="compact", style="max-height: 40vh;"
+                                ):
+                                    with self.config.provide_as("config"):
+                                        v3.VListItem(
+                                            subtitle=("name",),
+                                            v_for="name, idx in config.swap_group",
+                                            key="name",
+                                            click=(
+                                                self.ctrl.swap_variables,
+                                                "[config.variable, name]",
+                                            ),
+                                        )
 
                     v3.VIcon(
                         "mdi-lock-outline",
@@ -413,20 +687,30 @@ class VariableView(TrameComponent):
                     v3.VSpacer()
                     html.Div(
                         "t = {{ time_idx }}",
-                        classes="text-caption px-1",
+                        classes="text-caption px-1 text-no-wrap",
                         v_if="timestamps.length > 1",
                     )
                     if self.variable_type == "m":
                         html.Div(
                             "[k = {{ midpoint_idx }}]",
-                            classes="text-caption px-1",
+                            classes="text-caption px-1 text-no-wrap",
                             v_if="midpoints.length > 1",
                         )
                     if self.variable_type == "i":
                         html.Div(
                             "[k = {{ interface_idx }}]",
-                            classes="text-caption px-1",
+                            classes="text-caption px-1 text-no-wrap",
                             v_if="interfaces.length > 1",
+                        )
+                    v3.VSpacer()
+                    with self.config.provide_as("config"):
+                        html.Div(
+                            "avg = {{"
+                            "fields_avgs[config.variable]?.toExponential(2)"
+                            " || fields_avgs[config.base_variable]?.toExponential(2)"
+                            " || 'N/A'"
+                            "}}",
+                            classes="text-caption px-1 text-no-wrap",
                         )
 
                 with html.Div(
@@ -674,7 +958,12 @@ class ViewManager(TrameComponent):
                             if not view_specs:
                                 continue
 
-                            border_color = type_to_color.get(str(var_type), "primary")
+                            type_name = (
+                                ", ".join(var_type)
+                                if isinstance(var_type, (list, tuple))
+                                else str(var_type)
+                            )
+                            border_color = type_to_color.get(type_name, "primary")
                             with v3.VAlert(
                                 border="start",
                                 classes="pr-1 py-1 pl-3 mb-6",

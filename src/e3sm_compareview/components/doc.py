@@ -110,7 +110,7 @@ class LandingPage(v3.VContainer):
                         v3.VSpacer(classes="mt-2")
                         v3.VHotkey(keys="p", variant="contained", inline=True)
                     with v3.VRow(classes="ma-0 pb-4"):
-                        v3.VLabel("Toggle Lat/Long cropping toolbar")
+                        v3.VLabel("Toggle Lat/Lon cropping toolbar")
                         v3.VSpacer()
                         v3.VHotkey(keys="l", variant="contained", inline=True)
                     with v3.VRow(classes="ma-0 pb-4"):

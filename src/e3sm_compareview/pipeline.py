@@ -15,12 +15,19 @@ from paraview.simple import (
     LoadPlugin,
     OutputPort,
     Contour,
+    ExtractSurface,
     LegacyVTKReader,
 )
 
 from vtkmodules.vtkCommonCore import vtkLogger
 
 from collections import defaultdict
+
+
+def range_to_trim(value_range, max_value):
+    """Convert [-max, max] coordinate ranges into [left_trim, right_trim]."""
+    (min_value, max_range) = value_range
+    return [min_value + max_value, max_value - max_range]
 
 
 # Define a VTK error observer
@@ -54,7 +61,7 @@ class EAMVisSource:
 
         self.data_readers = []
         self.globe = None
-        self.projection = "Cyl. Equidistant"
+        self.projection = "Mollweide"
         self.timestamps = []
         self.center = 0.0
         self.variable_view_specs = {}
@@ -62,15 +69,20 @@ class EAMVisSource:
         self.loaded_variables = []
 
         self.prog_filter = None
+        self.atmos_center = None
         self.atmos_extract = None
         self.atmos_proj = None
+        self.atmos_surface = None
         self.cont_extract = None
         self.cont_proj = None
         self.grid_gen = None
         self.grid_proj = None
+        self._atmos_extract_mode = "range"
 
         self.extents = [-180.0, 180.0, -90.0, 90.0]
         self.moveextents = [-180.0, 180.0, -90.0, 90.0]
+        self.clip_longitude = [-180.0, 180.0]
+        self.clip_latitude = [-90.0, 90.0]
 
         self.views = {}
         self.vars = {"surface": [], "midpoint": [], "interface": []}
@@ -95,14 +107,25 @@ class EAMVisSource:
     def ApplyClipping(self, cliplong, cliplat):
         if not self.valid:
             return
+        self.clip_longitude = [float(cliplong[0]), float(cliplong[1])]
+        self.clip_latitude = [float(cliplat[0]), float(cliplat[1])]
 
         atmos_extract = self.atmos_extract or FindSource("AtmosExtract")
-        atmos_extract.LongitudeRange = cliplong
-        atmos_extract.LatitudeRange = cliplat
+        if self._atmos_extract_mode == "trim":
+            atmos_extract.TrimLongitude = range_to_trim(self.clip_longitude, 180)
+            atmos_extract.TrimLatitude = range_to_trim(self.clip_latitude, 90)
+        else:
+            atmos_extract.LongitudeRange = self.clip_longitude
+            atmos_extract.LatitudeRange = self.clip_latitude
 
         cont_extract = self.cont_extract or FindSource("ContExtract")
-        cont_extract.LongitudeRange = cliplong
-        cont_extract.LatitudeRange = cliplat
+        cont_extract.LongitudeRange = self.clip_longitude
+        cont_extract.LatitudeRange = self.clip_latitude
+
+        grid_gen = self.grid_gen or FindSource("GridGen")
+        if grid_gen:
+            grid_gen.LongitudeRange = self.clip_longitude
+            grid_gen.LatitudeRange = self.clip_latitude
 
     def UpdateCenter(self, center):
         """
@@ -143,22 +166,21 @@ class EAMVisSource:
             atmos_proj.UpdatePipeline(time)
         self.moveextents = atmos_proj.GetDataInformation().GetBounds()
 
+        atmos_surface = self.atmos_surface or FindSource("AtmosSurface")
+        if atmos_surface:
+            atmos_surface.UpdatePipeline(time)
+        else:
+            atmos_surface = atmos_proj
+
         cont_proj = self.cont_proj or FindSource("ContProj")
         if cont_proj:
             cont_proj.UpdatePipeline(time)
 
-        atmos_extract = self.atmos_extract or FindSource("AtmosExtract")
-        bounds = atmos_extract.GetDataInformation().GetBounds()
-
-        grid_gen = self.grid_gen or FindSource("GridGen")
-        if grid_gen:
-            grid_gen.LongitudeRange = [bounds[0], bounds[1]]
-            grid_gen.LatitudeRange = [bounds[2], bounds[3]]
         grid_proj = self.grid_proj or FindSource("GridProj")
         if grid_proj:
             grid_proj.UpdatePipeline(time)
 
-        self.views["atmosphere_data"] = OutputPort(atmos_proj, 0)
+        self.views["atmosphere_data"] = OutputPort(atmos_surface, 0)
         self.views["continents"] = OutputPort(cont_proj, 0)
         self.views["grid_lines"] = OutputPort(grid_proj, 0)
 
@@ -185,6 +207,15 @@ class EAMVisSource:
         self.timestamps = []
         self.variable_view_specs = {}
         self.array_metadata = {}
+        self.prog_filter = None
+        self.atmos_center = None
+        self.atmos_extract = None
+        self.atmos_proj = None
+        self.atmos_surface = None
+        self.cont_extract = None
+        self.cont_proj = None
+        self.grid_gen = None
+        self.grid_proj = None
         self.views = {}
 
     def _create_reader(self, index, file_path):
@@ -510,12 +541,41 @@ if area_np is not None:
             self.prog_filter.RequestUpdateExtentScript = ""
             self.prog_filter.PythonPath = ""
 
-            # Step 1: Extract and transform atmospheric data
-            self.atmos_extract = EAMTransformAndExtract(  # noqa: F821
-                registrationName="AtmosExtract", Input=self.prog_filter
+            # Step 1: Extract atmospheric data (trim-aware path when available).
+            has_trim_extract = (
+                "EAMCenterMeridian" in globals() and "EAMExtract" in globals()
             )
-            self.atmos_extract.LongitudeRange = [-180.0, 180.0]
-            self.atmos_extract.LatitudeRange = [-90.0, 90.0]
+            has_range_extract = "EAMTransformAndExtract" in globals()
+
+            if has_trim_extract:
+                self.atmos_center = EAMCenterMeridian(  # noqa: F821
+                    registrationName="AtmosCenter",
+                    Input=self.prog_filter,
+                )
+                self.atmos_extract = EAMExtract(  # noqa: F821
+                    registrationName="AtmosExtract",
+                    Input=self.atmos_center,
+                )
+                self.atmos_extract.TrimLongitude = range_to_trim(
+                    self.clip_longitude, 180
+                )
+                self.atmos_extract.TrimLatitude = range_to_trim(self.clip_latitude, 90)
+                self._atmos_extract_mode = "trim"
+            elif has_range_extract:
+                self.atmos_center = None
+                self.atmos_extract = EAMTransformAndExtract(  # noqa: F821
+                    registrationName="AtmosExtract",
+                    Input=self.prog_filter,
+                )
+                self.atmos_extract.LongitudeRange = self.clip_longitude
+                self.atmos_extract.LatitudeRange = self.clip_latitude
+                self._atmos_extract_mode = "range"
+            else:
+                raise RuntimeError(
+                    "No compatible atmospheric extract filter is available "
+                    "(expected EAMCenterMeridian+EAMExtract or EAMTransformAndExtract)"
+                )
+
             self.atmos_extract.UpdatePipeline()
             self.extents = self.atmos_extract.GetDataInformation().GetBounds()
 
@@ -526,6 +586,12 @@ if area_np is not None:
             self.atmos_proj.Projection = self.projection
             self.atmos_proj.Translate = 0
             self.atmos_proj.UpdatePipeline()
+            self.atmos_surface = ExtractSurface(  # noqa: F821
+                registrationName="AtmosSurface",
+                Input=self.atmos_proj,
+            )
+            self.atmos_surface.UpdatePipeline()
+
             self.moveextents = self.atmos_proj.GetDataInformation().GetBounds()
 
             # Step 3: Load and process continent outlines
@@ -548,8 +614,8 @@ if area_np is not None:
             self.cont_extract = EAMTransformAndExtract(  # noqa: F821
                 registrationName="ContExtract", Input=self.globe
             )
-            self.cont_extract.LongitudeRange = [-180.0, 180.0]
-            self.cont_extract.LatitudeRange = [-90.0, 90.0]
+            self.cont_extract.LongitudeRange = self.clip_longitude
+            self.cont_extract.LatitudeRange = self.clip_latitude
             # Step 5: Apply map projection to continents
             self.cont_proj = EAMProject(  # noqa: F821
                 registrationName="ContProj", Input=OutputPort(self.cont_extract, 0)
@@ -560,6 +626,8 @@ if area_np is not None:
 
             # Step 6: Generate lat/lon grid lines
             self.grid_gen = EAMGridLines(registrationName="GridGen")  # noqa: F821
+            self.grid_gen.LongitudeRange = self.clip_longitude
+            self.grid_gen.LatitudeRange = self.clip_latitude
             self.grid_gen.UpdatePipeline()
 
             # Step 7: Apply map projection to grid lines
@@ -571,7 +639,7 @@ if area_np is not None:
             self.grid_proj.UpdatePipeline()
 
             # Step 8: Cache all projected views for rendering
-            self.views["atmosphere_data"] = OutputPort(self.atmos_proj, 0)
+            self.views["atmosphere_data"] = OutputPort(self.atmos_surface, 0)
             self.views["continents"] = OutputPort(self.cont_proj, 0)
             self.views["grid_lines"] = OutputPort(self.grid_proj, 0)
 

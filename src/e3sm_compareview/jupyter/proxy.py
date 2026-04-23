@@ -1,6 +1,6 @@
 """Server proxy configuration for QuickCompare in JupyterLab."""
 
-import os
+from pathlib import Path
 
 
 def setup_compareview():
@@ -10,11 +10,7 @@ def setup_compareview():
 
 def setup_quickcompare():
     """Configure jupyter-server-proxy for QuickCompare."""
-    icon_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "icons",
-        "compareview.png",
-    )
+    icon_path = Path(__file__).with_name("icons") / "compareview.png"
 
     return {
         "command": [
@@ -28,8 +24,8 @@ def setup_quickcompare():
         "timeout": 30,
         "launcher_entry": {
             "enabled": True,
-            "title": "QuickCompare",
-            "icon_path": icon_path,
+            "title": "E3SM QuickCompare",
+            "icon_path": str(icon_path.resolve()),
             "category": "Other",
         },
         "new_browser_tab": False,

@@ -65,13 +65,13 @@ class Layout(html.Div):
         with self:
             # First row - existing layout controls
             with v3.VToolbar(density="compact", color="white", classes="border-b-thin"):
-                v3.VIcon("mdi-collage", classes="px-6 opacity-50")
+                v3.VIcon("mdi-view-module", classes="px-6 opacity-50")
                 v3.VLabel("Viewport layout", classes="text-subtitle-2")
                 v3.VSpacer()
 
                 v3.VSlider(
                     v_model=("aspect_ratio", 2),
-                    prepend_icon="mdi-aspect-ratio",
+                    prepend_icon="mdi-arrow-expand-horizontal",
                     min=1,
                     max=2,
                     step=0.1,
@@ -104,7 +104,7 @@ class Layout(html.Div):
                 with v3.VBtn(
                     "Size",
                     classes="text-none mx-4",
-                    prepend_icon="mdi-view-module",
+                    prepend_icon="mdi-view-column",
                     append_icon="mdi-menu-down",
                 ):
                     with v3.VMenu(activator="parent"):
@@ -214,8 +214,21 @@ class Cropping(v3.VToolbar):
         super().__init__(**to_kwargs("adjust-databounds"))
 
         with self:
-            v3.VIcon("mdi-web", classes="pl-6 opacity-50")
-            with v3.VRow(classes="ma-0 px-2 align-center"):
+            with v3.VTooltip(
+                text=(
+                    "crop_slider_edit ? 'Toggle to text edit' : 'Toggle to slider edit'",
+                ),
+            ):
+                with v3.Template(v_slot_activator="{ props }"):
+                    v3.VIcon(
+                        "mdi-web",
+                        v_bind="props",
+                        classes="pl-6 opacity-50",
+                        click="crop_slider_edit = !crop_slider_edit",
+                    )
+            with v3.VRow(
+                classes="ma-0 px-2 align-center", v_if=("crop_slider_edit", True)
+            ):
                 with v3.VCol(cols=6):
                     with v3.VRow(classes="mx-2 my-0"):
                         v3.VLabel(
@@ -254,6 +267,92 @@ class Cropping(v3.VToolbar):
                         density="compact",
                         hide_details=True,
                     )
+            with v3.VRow(classes="ma-0 pl-6 pr-2 align-center ga-4", v_else=True):
+                v3.VNumberInput(
+                    label="Longitude (min)",
+                    v_model=("crop_longitude_min", -180),
+                    min=[-180],
+                    max=("crop_longitude_max", 180),
+                    step=[1],
+                    hide_details=True,
+                    density="comfortable",
+                    variant="plain",
+                    flat=True,
+                    control_variant="stacked",
+                )
+                v3.VNumberInput(
+                    label="Longitude (max)",
+                    v_model=("crop_longitude_max", 180),
+                    min=("crop_longitude_min", -180),
+                    max=[180],
+                    step=[1],
+                    hide_details=True,
+                    density="comfortable",
+                    variant="plain",
+                    flat=True,
+                    control_variant="stacked",
+                    inset=True,
+                )
+                v3.VNumberInput(
+                    label="Latitude (min)",
+                    v_model=("crop_latitude_min", -90),
+                    min=[-90],
+                    max=("crop_latitude_max", 90),
+                    step=[1],
+                    hide_details=True,
+                    density="comfortable",
+                    variant="plain",
+                    flat=True,
+                    control_variant="stacked",
+                    inset=True,
+                )
+                v3.VNumberInput(
+                    label="Latitude (max)",
+                    v_model=("crop_latitude_max", 90),
+                    min=("crop_latitude_min", -90),
+                    max=[90],
+                    step=[1],
+                    hide_details=True,
+                    density="comfortable",
+                    variant="plain",
+                    flat=True,
+                    control_variant="stacked",
+                    inset=True,
+                )
+
+    @change("crop_longitude_min", "crop_longitude_max")
+    def _on_crop_lon(self, crop_longitude_min, crop_longitude_max, **_):
+        if crop_longitude_min is None or crop_longitude_max is None:
+            return
+
+        data_range = [float(crop_longitude_min), float(crop_longitude_max)]
+        if data_range[0] < data_range[1]:
+            self.state.crop_longitude = data_range
+
+    @change("crop_latitude_min", "crop_latitude_max")
+    def _on_crop_lat(self, crop_latitude_min, crop_latitude_max, **_):
+        if crop_latitude_min is None or crop_latitude_max is None:
+            return
+
+        data_range = [float(crop_latitude_min), float(crop_latitude_max)]
+        if data_range[0] < data_range[1]:
+            self.state.crop_latitude = data_range
+
+    @change("crop_longitude")
+    def _sync_crop_lon_inputs(self, crop_longitude, **_):
+        if not crop_longitude or len(crop_longitude) < 2:
+            return
+
+        self.state.crop_longitude_min = crop_longitude[0]
+        self.state.crop_longitude_max = crop_longitude[1]
+
+    @change("crop_latitude")
+    def _sync_crop_lat_inputs(self, crop_latitude, **_):
+        if not crop_latitude or len(crop_latitude) < 2:
+            return
+
+        self.state.crop_latitude_min = crop_latitude[0]
+        self.state.crop_latitude_max = crop_latitude[1]
 
 
 class ComparisonMode(v3.VToolbar):
@@ -313,7 +412,9 @@ class ComparisonMode(v3.VToolbar):
                     ):
                         with v3.Template(v_slot_activator="{ props }"):
                             v3.VBtn(
-                                COMPARISON_TYPE_LABELS.get(comp_type, comp_type.upper()),
+                                COMPARISON_TYPE_LABELS.get(
+                                    comp_type, comp_type.upper()
+                                ),
                                 v_bind="props",
                                 size="small",
                                 variant="outlined",
@@ -352,49 +453,103 @@ class DataSelection(html.Div):
         super().__init__(**style)
 
         with self:
-            v3.VIcon("mdi-tune-variant", classes="ml-3 mr-2 opacity-50")
+            with v3.VTooltip(
+                text=(
+                    "slice_slider_edit ? 'Toggle to text edit' : 'Toggle to slider edit'",
+                ),
+            ):
+                with v3.Template(v_slot_activator="{ props }"):
+                    v3.VIcon(
+                        "mdi-tune-variant",
+                        v_bind="props",
+                        classes="ml-3 mr-2 opacity-50",
+                        click="slice_slider_edit = !slice_slider_edit",
+                    )
 
-            with v3.VRow(classes="ma-0 pr-2 flex-wrap flex-grow-1", dense=True):
-                # Debug: Show animation_tracks array
-                # html.Div("Animation Tracks: {{ JSON.stringify(animation_tracks) }}", classes="col-12")
+            with v3.VRow(
+                classes="ma-0 pr-2 flex-wrap flex-grow-1",
+                dense=True,
+                v_if=("slice_slider_edit", True),
+            ):
+                # Debug: Show available_animation_tracks array
+                # html.Div("Animation Tracks: {{ JSON.stringify(available_animation_tracks) }}", classes="col-12")
                 # Each track gets a column (3 per row)
                 with v3.VCol(
                     cols=4,
-                    v_for="(track, idx) in animation_tracks",
+                    v_for="(track, idx) in available_animation_tracks",
                     key="idx",
                     classes="pa-2",
                 ):
-                    with client.Getter(name=("track.value",), value_name="t_values"):
+                    with client.Getter(name=("track",), value_name="t_values"):
                         with client.Getter(
-                            name=("track.value + '_idx'",), value_name="t_idx"
+                            name=("track + '_idx'",), value_name="t_idx"
                         ):
                             with v3.VRow(classes="ma-0 align-center", dense=True):
                                 v3.VLabel(
-                                    "{{track.title}}",
+                                    "{{track}}",
                                     classes="text-subtitle-2",
                                 )
                                 v3.VSpacer()
                                 v3.VLabel(
-                                    "{{ parseFloat(t_values[t_idx]).toFixed(2) }} hPa (k={{ t_idx }})",
+                                    "{{ dim_units[track] ? parseFloat(t_values[t_idx]).toFixed(2) + ' ' + dim_units[track] : 'Index value: ' + t_idx }} (k={{ t_idx }})",
                                     classes="text-body-2",
                                 )
                             v3.VSlider(
                                 model_value=("t_idx",),
                                 update_modelValue=(
                                     self.on_update_slider,
-                                    "[track.value, $event]",
+                                    "[track, $event]",
                                 ),
                                 min=0,
-                                # max=100,#("get(track.value).length - 1",),
+                                # max=100,#("get(track).length - 1",),
                                 max=("t_values.length - 1",),
                                 step=1,
                                 density="compact",
                                 hide_details=True,
                             )
+            with v3.VRow(
+                classes="ma-0 pl-6 pr-2 align-center ga-4",
+                v_else=True,
+            ):
+                with v3.VCol(
+                    v_for="(track, idx) in available_animation_tracks",
+                    key="idx",
+                ):
+                    with client.Getter(name=("track",), value_name="t_values"):
+                        with client.Getter(
+                            name=("track + '_idx'",), value_name="t_idx"
+                        ):
+                            with v3.VRow(classes="ma-0 align-center", dense=True):
+                                v3.VNumberInput(
+                                    model_value=("Number(t_idx)",),
+                                    update_modelValue=(
+                                        self.on_update_slider,
+                                        "[track, Number($event)]",
+                                    ),
+                                    key=("track + '_' + t_idx",),
+                                    min=[0],
+                                    max=["t_values ? t_values.length - 1 : 0"],
+                                    step=[1],
+                                    hide_details=True,
+                                    density="comfortable",
+                                    variant="plain",
+                                    flat=True,
+                                    control_variant="stacked",
+                                    style="max-width: 100px;",
+                                    reverse=True,
+                                )
+                                v3.VLabel(
+                                    "{{track}}",
+                                    classes="text-subtitle-2 ml-2 mt-1",
+                                )
+                                v3.VLabel(
+                                    "{{ dim_units[track] ? parseFloat(t_values[Number(t_idx)]).toFixed(2) + ' ' + dim_units[track] : 'Index value: ' + t_idx }}",
+                                    classes="text-body-2 text-no-wrap ml-2 mt-1",
+                                )
 
     def on_update_slider(self, dimension, index, *_, **__):
         with self.state:
-            self.state[f"{dimension}_idx"] = index
+            self.state[f"{dimension}_idx"] = int(index)
 
 
 class Animation(v3.VToolbar):
@@ -408,8 +563,8 @@ class Animation(v3.VToolbar):
             )
             with v3.VRow(classes="ma-0 px-2 align-center"):
                 v3.VSelect(
-                    v_model=("animation_track", "timestamps"),
-                    items=("animation_tracks", []),
+                    v_model=("animation_track", None),
+                    items=("available_animation_tracks", []),
                     flat=True,
                     variant="plain",
                     hide_details=True,
@@ -420,7 +575,7 @@ class Animation(v3.VToolbar):
                 v3.VSlider(
                     v_model=("animation_step", 1),
                     min=0,
-                    max=("amimation_step_max", 0),
+                    max=("animation_step_max", 0),
                     step=1,
                     hide_details=True,
                     density="compact",
@@ -442,14 +597,14 @@ class Animation(v3.VToolbar):
                 v3.VIconBtn(
                     icon="mdi-chevron-right",
                     flat=True,
-                    disabled=("animation_step === amimation_step_max",),
-                    click="animation_step = Math.min(amimation_step_max, animation_step + 1)",
+                    disabled=("animation_step === animation_step_max",),
+                    click="animation_step = Math.min(animation_step_max, animation_step + 1)",
                 )
                 v3.VIconBtn(
                     icon="mdi-page-last",
-                    disabled=("animation_step === amimation_step_max",),
+                    disabled=("animation_step === animation_step_max",),
                     flat=True,
-                    click="animation_step = amimation_step_max",
+                    click="animation_step = animation_step_max",
                 )
                 v3.VDivider(vertical=True, classes="mx-2")
                 v3.VIconBtn(
@@ -461,10 +616,17 @@ class Animation(v3.VToolbar):
     @change("animation_track")
     def _on_animation_track_change(self, animation_track, **_):
         self.state.animation_step = 0
-        self.state.amimation_step_max = 0
+        self.state.animation_step_max = 0
 
         if animation_track:
-            self.state.amimation_step_max = len(self.state[animation_track]) - 1
+            values = None
+            try:
+                values = self.state[animation_track]
+            except Exception:
+                values = None
+
+            if values:
+                self.state.animation_step_max = len(values) - 1
 
     @change("animation_step")
     def _on_animation_step(self, animation_track, animation_step, **_):
@@ -480,7 +642,7 @@ class Animation(v3.VToolbar):
         with self.state as s:
             while s.animation_play:
                 await asyncio.sleep(0.1)
-                if s.animation_step < s.amimation_step_max:
+                if s.animation_step < s.animation_step_max:
                     with s:
                         s.animation_step += 1
                     await self.server.network_completion

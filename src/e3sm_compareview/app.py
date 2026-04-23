@@ -1,7 +1,9 @@
 import asyncio
 import datetime
 import json
+import math
 import os
+import time
 from pathlib import Path
 
 from paraview import servermanager
@@ -28,6 +30,7 @@ from e3sm_compareview.components import (
     drawers,
     file_browser,
     simulation_selection,
+    tools as nav_tools,
     toolbars,
 )
 from e3sm_compareview.pipeline import EAMVisSource
@@ -65,6 +68,15 @@ class EAMApp(TrameApp):
                 "variables_selected": [],
                 # Control 'Load Variables' button availability
                 "variables_loaded": False,
+                # Loading feedback
+                "loading": False,
+                "loading_time": 0,
+                # Slicing / animation track state
+                "animation_tracks": [],
+                "available_animation_tracks": [],
+                "dim_units": {},
+                "crop_slider_edit": True,
+                "slice_slider_edit": True,
                 # Dynamic type-color mapping (populated when data loads)
                 "variable_types": [],
                 # Dimension arrays (will be populated dynamically)
@@ -80,6 +92,7 @@ class EAMApp(TrameApp):
                 "comparison_mode": "multi-sim",
                 "comparison_type": "diff",
                 "selected_columns": ["ctrl", "test", "diff", "comp1", "comp2"],
+                "projection": ["Mollweide"],
                 "dragged_simulation_path": "",
             }
         )
@@ -139,7 +152,13 @@ class EAMApp(TrameApp):
                 "/index.html?ui=main&reconnect=auto\n\n".encode(),
             )
         else:
+            base_url = "http://localhost"
             os.write(1, f"tauri-server-port={self.server.port}\n".encode())
+            os.write(
+                1,
+                "\nUse URL below to connect to the application:\n\n  => "
+                f"{base_url}:{self.server.port}/\n\n".encode(),
+            )
 
     @life_cycle.client_connected
     def _tauri_show(self, **_):
@@ -175,7 +194,7 @@ class EAMApp(TrameApp):
                 ProjectionMollweide="projection = ['Mollweide']",
                 ToggleViewLock="lock_views = !lock_views",
                 FileOpen=(self.toggle_toolbar, "['load-data']"),
-                SaveState="trigger('download_state')",
+                SaveState="trigger('download_state_dialog')",
                 UploadState="utils.get('document').querySelector('#fileUpload').click()",
                 ToggleHelp="compact_drawer = !compact_drawer",
             ) as mt:
@@ -215,7 +234,7 @@ class EAMApp(TrameApp):
                 self.ctrl.save = dialog.save
 
             with v3.VLayout():
-                drawers.Tools(
+                nav_tools.Tools(
                     reset_camera=self.view_manager.reset_camera,
                     toggle_toolbar=self.toggle_toolbar,
                 )
@@ -277,6 +296,16 @@ class EAMApp(TrameApp):
             self.state.comparison_mode,
             self.state.two_sim_test_simulation_file,
         )
+
+    @staticmethod
+    def _projection_name(projection):
+        if isinstance(projection, (list, tuple)):
+            if projection:
+                return projection[0]
+            return "Mollweide"
+        if isinstance(projection, str):
+            return projection
+        return "Mollweide"
 
     def _ensure_two_sim_target(self):
         if self.state.comparison_mode != "two-sim":
@@ -346,6 +375,8 @@ class EAMApp(TrameApp):
     # Methods connected to UI
     # -------------------------------------------------------------------------
 
+    @trigger("download_state_dialog")
+    @controller.set("download_state_dialog")
     @trigger("download_state")
     @controller.set("download_state")
     def download_state(self):
@@ -391,6 +422,8 @@ class EAMApp(TrameApp):
                 "crop_longitude",
                 "crop_latitude",
                 "projection",
+                "crop_slider_edit",
+                "slice_slider_edit",
             ]
         }
         views_to_export = state_content["views"] = []
@@ -484,6 +517,7 @@ class EAMApp(TrameApp):
         # Load variables
         self.state.variables_selected = state_content["variables-selection"]
         self.state.update(state_content["data-selection"])
+        self.state.projection = [self._projection_name(self.state.projection)]
         await self._data_load_variables()
         self.state.variables_loaded = True
 
@@ -554,32 +588,44 @@ class EAMApp(TrameApp):
                 # Update Layer/Time values and ui layout
                 n_cols = 0
                 available_tracks = []
+                dim_units = {}
                 for name, dim in self.source.dimmeta.items():
                     values = dim.data
+                    dim_size = getattr(dim, "size", None)
                     # Convert to list for JSON serialization
-                    self.state[name] = (
-                        values.tolist()
-                        if hasattr(values, "tolist")
-                        else list(values)
-                        if values is not None
-                        else []
-                    )
-                    if values is not None and len(values) > 1:
+                    if values is not None:
+                        self.state[name] = (
+                            values.tolist()
+                            if hasattr(values, "tolist")
+                            else list(values)
+                        )
+                    else:
+                        self.state[name] = list(range(dim_size or 0))
+
+                    if dim_size is None:
+                        dim_size = len(self.state[name])
+
+                    if dim_size > 1:
                         n_cols += 1
-                        available_tracks.append({"title": name, "value": name})
+                        available_tracks.append(name)
+                        units = getattr(dim, "units", None)
+                        if units:
+                            dim_units[name] = units
+
+                self.state.dim_units = dim_units
                 self.state.toolbar_slider_cols = 12 / n_cols if n_cols else 12
                 self.state.animation_tracks = available_tracks
+                self.state.available_animation_tracks = available_tracks
                 self.state.animation_track = (
-                    self.state.animation_tracks[0]["value"]
-                    if available_tracks
+                    self.state.available_animation_tracks[0]
+                    if self.state.available_animation_tracks
                     else None
                 )
 
                 from functools import partial
 
                 # Initialize dynamic index variables for each dimension
-                for track in available_tracks:
-                    dim_name = track["value"]
+                for dim_name in available_tracks:
                     index_var = f"{dim_name}_idx"
                     if "time" in index_var:
                         self.state[index_var] = 50
@@ -596,39 +642,64 @@ class EAMApp(TrameApp):
         ]
 
     def data_load_variables(self):
+        self.state.loading = True
         asynchronous.create_task(self._data_load_variables())
 
     async def _data_load_variables(self):
         """Called at 'Load Variables' button click"""
-        vars_to_show = self.selected_variables
+        t0 = time.perf_counter()
+        try:
+            # Give room for UI loading state to render
+            await asyncio.sleep(0.1)
+            vars_to_show = self.selected_variables
 
-        # Flatten the list of lists
-        flattened_vars = [var for var_list in vars_to_show.values() for var in var_list]
+            # Flatten the list of lists
+            flattened_vars = [
+                var for var_list in vars_to_show.values() for var in var_list
+            ]
 
-        self.source.LoadVariables(flattened_vars)
+            # Keep only tracks present in currently selected variables.
+            used_dims = set()
+            for dims in vars_to_show.keys():
+                used_dims.update(dims)
+            self.state.available_animation_tracks = [
+                track for track in self.state.animation_tracks if track in used_dims
+            ]
+            self.state.animation_track = (
+                self.state.available_animation_tracks[0]
+                if self.state.available_animation_tracks
+                else None
+            )
 
-        # Trigger source update + compute avg
-        with self.state:
-            self.state.variables_loaded = True
-        await self.server.network_completion
+            self.source.LoadVariables(flattened_vars)
 
-        await asyncio.sleep(0.1)
-        active_simulations = self.active_simulation_configs
-        self.source.Update(
-            simulation_configs=active_simulations,
-            conn_file=self.source.conn_file,
-            variables=flattened_vars,
-            force_reload=True,
-        )
+            # Trigger source update + compute avg
+            with self.state:
+                self.state.variables_loaded = True
+            await self.server.network_completion
 
-        # Update views in layout
-        with self.state:
-            self.view_manager.build_auto_layout(vars_to_show)
-        await self.server.network_completion
+            await asyncio.sleep(0.1)
+            active_simulations = self.active_simulation_configs
+            self.source.Update(
+                simulation_configs=active_simulations,
+                conn_file=self.source.conn_file,
+                variables=flattened_vars,
+                force_reload=True,
+            )
 
-        # Reset camera after yield
-        await asyncio.sleep(0.1)
-        self.view_manager.reset_camera()
+            # Update views in layout
+            with self.state:
+                self.view_manager.build_auto_layout(vars_to_show)
+            await self.server.network_completion
+
+            # Reset camera after yield
+            await asyncio.sleep(0.1)
+            self.view_manager.reset_camera()
+        finally:
+            t1 = time.perf_counter()
+            with self.state:
+                self.state.loading = False
+                self.state.loading_time = t1 - t0
 
     @change("layout_grouped")
     def _on_layout_change(self, **_):
@@ -702,7 +773,7 @@ class EAMApp(TrameApp):
 
     @change("projection")
     async def _on_projection(self, projection, **_):
-        proj_str = projection[0]
+        proj_str = self._projection_name(projection)
         self.source.UpdateProjection(proj_str)
         self.source.UpdatePipeline()
         self.view_manager.reset_camera()
@@ -714,13 +785,20 @@ class EAMApp(TrameApp):
                 await asyncio.sleep(0.1)
                 self.view_manager.reset_camera()
 
-    @change("active_tools", "animation_tracks")
+    @change("active_tools", "available_animation_tracks")
     def _on_toolbar_change(self, active_tools, **_):
         top_padding = 0
         for name in active_tools:
             if name == "select-slice-time":
-                track_count = len(self.state.animation_tracks or [])
-                rows_needed = max([1, (track_count + 2) // 3])  # 3 sliders per row
+                track_count = len(self.state.available_animation_tracks or [])
+                rows_needed = 1
+                if track_count > 3:
+                    if track_count % 3 == 0 or (track_count + 1) % 3 == 0:
+                        rows_needed = math.ceil(track_count / 3)
+                    elif track_count % 2 == 0:
+                        rows_needed = track_count / 2
+                    else:
+                        rows_needed = math.ceil(track_count / 3)
                 top_padding += 70 * rows_needed
             else:
                 top_padding += toolbars.SIZES.get(name, 0)
@@ -743,25 +821,22 @@ class EAMApp(TrameApp):
         )
 
     @change(
-        # "variables_loaded",
         "crop_longitude",
         "crop_latitude",
-        "projection",
     )
     def _on_downstream_change(
         self,
-        # variables_loaded,
         crop_longitude,
         crop_latitude,
-        projection,
         **_,
     ):
         if not self.state.variables_loaded:
             return
 
         self.source.ApplyClipping(crop_longitude, crop_latitude)
-        self.source.UpdateProjection(projection[0])
+        self.source.UpdateProjection(self._projection_name(self.state.projection))
         self.source.UpdatePipeline()
+        self.view_manager.reset_camera()
 
         self.view_manager.update_color_range()
         self.view_manager.render()
