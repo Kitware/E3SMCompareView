@@ -11,6 +11,7 @@ from paraview import simple
 from vtkmodules.vtkRenderingCore import vtkActor, vtkPolyDataMapper
 
 from e3sm_compareview.components import view as tview
+from e3sm_compareview.utils import format_color_range_endpoints
 from e3sm_quickview.presets import COLOR_BLIND_SAFE
 from e3sm_quickview.utils.color import COLORBAR_CACHE, lut_to_img
 from e3sm_quickview.utils.math import compute_color_ticks, tick_contrast_color
@@ -73,6 +74,8 @@ class ViewConfiguration(dataclass.StateDataModel):
     lut_img: str = dataclass.Sync(str)
     color_ticks: list = dataclass.Sync(list, list)
     effective_color_range: list[float] = dataclass.Sync(tuple[float, float], (0, 1))
+    color_range_min_label: str = dataclass.Sync(str, "0")
+    color_range_max_label: str = dataclass.Sync(str, "1")
 
 
 class VariableView(TrameComponent):
@@ -434,6 +437,12 @@ class VariableView(TrameComponent):
 
     def _compute_ticks(self):
         vmin, vmax = self.config.color_range
+        (
+            self.config.color_range_min_label,
+            self.config.color_range_max_label,
+        ) = format_color_range_endpoints(
+            self.config.color_range, self.config.use_log_scale
+        )
         ticks = compute_color_ticks(vmin, vmax, scale=self.config.use_log_scale, n=5)
         if not ticks:
             self.config.color_ticks = []

@@ -154,7 +154,7 @@ def create_bottom_bar(config, update_color_preset):
                                 classes="rounded",
                             )
             html.Div(
-                "{{ utils.quickview.formatRange(config.color_range?.[0], config.use_log_scale, config.color_range?.[0], config.color_range?.[1]) }}",
+                "{{ config.color_range_min_label }}",
                 classes="text-caption px-2 text-no-wrap",
             )
             with html.Div(
@@ -191,6 +191,6 @@ def create_bottom_bar(config, update_color_preset):
                             style=("`width:1.5px;flex:1;background:${tick.color};`",),
                         )
             html.Div(
-                "{{ utils.quickview.formatRange(config.color_range?.[1], config.use_log_scale, config.color_range?.[0], config.color_range?.[1]) }}",
+                "{{ config.color_range_max_label }}",
                 classes="text-caption px-2 text-no-wrap",
             )
