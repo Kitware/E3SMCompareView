@@ -2,6 +2,39 @@
 
 <!-- version list -->
 
+## v1.4.0 (2026-04-27)
+
+### Bug Fixes
+
+- **multi-sim**: Fix drag re-ordering UI
+  ([`6f6b6e7`](https://github.com/Kitware/E3SMQuickCompare/commit/6f6b6e77324449e81d28946c8269be6e228a66b3))
+
+- **tooltips**: Add tooltips for multi-sim/comparisons
+  ([`32413da`](https://github.com/Kitware/E3SMQuickCompare/commit/32413da331d0f27a87c8a9d418997ce7937375cd))
+
+- **tooltips**: Update tooltips from QuickView
+  ([`3539594`](https://github.com/Kitware/E3SMQuickCompare/commit/3539594d0624aa89d736605225fe69b296c659ca))
+
+- **ui**: Update button colors to make function clearer
+  ([`a87b91e`](https://github.com/Kitware/E3SMQuickCompare/commit/a87b91e92c7dfe4b42355b9172dc5b472febbf33))
+
+- **view**: Fix colorbar range display bug
+  ([`faebf51`](https://github.com/Kitware/E3SMQuickCompare/commit/faebf517f507b5f53d239c79f58a6a4531c1a915))
+
+### Chores
+
+- Port QuickView changes (non-rendering)
+  ([`7176490`](https://github.com/Kitware/E3SMQuickCompare/commit/7176490301a13d1498a36ebb3da3532f8a244af5))
+
+### Features
+
+- Port QuickView rendering changes
+  ([`5df6af8`](https://github.com/Kitware/E3SMQuickCompare/commit/5df6af81a173efce0b97143b7cee6cfc8deceaaa))
+
+- **comparison**: Add new "Source" multi-sim comparison type, that shows raw data
+  ([`a0fdf1a`](https://github.com/Kitware/E3SMQuickCompare/commit/a0fdf1a6f8f794e6b2f3ee8e9e569640de6de75d))
+
+
 ## v1.3.5 (2026-04-06)
 
 ### Bug Fixes
