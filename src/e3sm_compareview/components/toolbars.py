@@ -6,6 +6,7 @@ from trame.widgets import client, html
 from trame.widgets import vuetify3 as v3
 
 from e3sm_compareview.comparison import COMPARISON_TYPES, COMPARISON_TYPE_LABELS
+from e3sm_quickview.components.toolbars import Layout as Layout
 from e3sm_quickview.utils import js
 
 DENSITY = {
@@ -54,159 +55,6 @@ def to_kwargs(value):
         "density": DENSITY[value],
         **DEFAULT_STYLES,
     }
-
-
-class Layout(html.Div):
-    def __init__(self, apply_size=None):
-        style = to_kwargs("adjust-layout")
-        style["style"] = "background: rgb(var(--v-theme-surface));"
-        super().__init__(**style)
-
-        with self:
-            # First row - existing layout controls
-            with v3.VToolbar(density="compact", color="white", classes="border-b-thin"):
-                v3.VIcon("mdi-view-module", classes="px-6 opacity-50")
-                v3.VLabel("Viewport layout", classes="text-subtitle-2")
-                v3.VSpacer()
-
-                v3.VSlider(
-                    v_model=("aspect_ratio", 2),
-                    prepend_icon="mdi-arrow-expand-horizontal",
-                    min=1,
-                    max=2,
-                    step=0.1,
-                    density="compact",
-                    hide_details=True,
-                    style="max-width: 400px;",
-                )
-                v3.VSpacer()
-
-                # ------------------------------------------------------------
-                # Add tooltip for keyboard shortcut??
-                # ------------------------------------------------------------
-                # with v3.VTooltip(location="bottom"):
-                #    with v3.Template(v_slot_activator="{ props }"):
-                v3.VHotkey(keys="g", variant="contained", classes="mr-1")
-                v3.VCheckbox(
-                    # v_bind="props",
-                    v_model=("layout_grouped", True),
-                    label=("layout_grouped ? 'Grouped' : 'Uniform'",),
-                    hide_details=True,
-                    inset=True,
-                    false_icon="mdi-apps",
-                    true_icon="mdi-focus-field",
-                    density="compact",
-                )
-                # with html.Span("Keyboard shortcut"):
-                #     v3.VHotkey(theme="dark", keys="g", variant="contained", inline=True, classes="ml-2 mt-n2")
-                # ------------------------------------------------------------
-
-                with v3.VBtn(
-                    "Size",
-                    classes="text-none mx-4",
-                    prepend_icon="mdi-view-column",
-                    append_icon="mdi-menu-down",
-                ):
-                    with v3.VMenu(activator="parent"):
-                        with v3.VList(density="compact"):
-                            with v3.VListItem(
-                                title="Auto flow",
-                                click=(
-                                    apply_size,
-                                    "['flow']",
-                                ),
-                            ):
-                                with v3.Template(v_slot_append=True):
-                                    v3.VHotkey(
-                                        keys="=",
-                                        variant="contained",
-                                        inline=True,
-                                        classes="ml-6 mt-n1",
-                                    )
-                            with v3.VListItem(
-                                title="Auto",
-                                click=(
-                                    apply_size,
-                                    "[0]",
-                                ),
-                            ):
-                                with v3.Template(v_slot_append=True):
-                                    v3.VHotkey(
-                                        keys="0",
-                                        variant="contained",
-                                        inline=True,
-                                        classes="ml-6 mt-n1",
-                                    )
-                            with v3.VListItem(
-                                title="Full Width",
-                                click=(
-                                    apply_size,
-                                    "[1]",
-                                ),
-                            ):
-                                with v3.Template(v_slot_append=True):
-                                    v3.VHotkey(
-                                        keys="1",
-                                        variant="contained",
-                                        inline=True,
-                                        classes="ml-6 mt-n1",
-                                    )
-                            with v3.VListItem(
-                                title="2 Columns",
-                                click=(
-                                    apply_size,
-                                    "[2]",
-                                ),
-                            ):
-                                with v3.Template(v_slot_append=True):
-                                    v3.VHotkey(
-                                        keys="2",
-                                        variant="contained",
-                                        inline=True,
-                                        classes="ml-6 mt-n1",
-                                    )
-                            with v3.VListItem(
-                                title="3 Columns",
-                                click=(
-                                    apply_size,
-                                    "[3]",
-                                ),
-                            ):
-                                with v3.Template(v_slot_append=True):
-                                    v3.VHotkey(
-                                        keys="3",
-                                        variant="contained",
-                                        inline=True,
-                                        classes="ml-6 mt-n1",
-                                    )
-                            with v3.VListItem(
-                                title="4 Columns",
-                                click=(
-                                    apply_size,
-                                    "[4]",
-                                ),
-                            ):
-                                with v3.Template(v_slot_append=True):
-                                    v3.VHotkey(
-                                        keys="4",
-                                        variant="contained",
-                                        inline=True,
-                                        classes="ml-6 mt-n1",
-                                    )
-                            with v3.VListItem(
-                                title="6 Columns",
-                                click=(
-                                    apply_size,
-                                    "[6]",
-                                ),
-                            ):
-                                with v3.Template(v_slot_append=True):
-                                    v3.VHotkey(
-                                        keys="6",
-                                        variant="contained",
-                                        inline=True,
-                                        classes="ml-6 mt-n1",
-                                    )
 
 
 class Cropping(v3.VToolbar):
@@ -471,9 +319,6 @@ class DataSelection(html.Div):
                 dense=True,
                 v_if=("slice_slider_edit", True),
             ):
-                # Debug: Show available_animation_tracks array
-                # html.Div("Animation Tracks: {{ JSON.stringify(available_animation_tracks) }}", classes="col-12")
-                # Each track gets a column (3 per row)
                 with v3.VCol(
                     cols=4,
                     v_for="(track, idx) in available_animation_tracks",
@@ -501,7 +346,6 @@ class DataSelection(html.Div):
                                     "[track, $event]",
                                 ),
                                 min=0,
-                                # max=100,#("get(track).length - 1",),
                                 max=("t_values.length - 1",),
                                 step=1,
                                 density="compact",

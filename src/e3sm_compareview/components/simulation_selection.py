@@ -185,7 +185,9 @@ simulation_configs = simulation_configs.map((sim) =>
                                                 "control_simulation_file === entry.path ? 'Current control simulation' : 'Set this simulation as control'",
                                             ),
                                         ):
-                                            with v3.Template(v_slot_activator="{ props }"):
+                                            with v3.Template(
+                                                v_slot_activator="{ props }"
+                                            ):
                                                 v3.VBtn(
                                                     v_bind="props",
                                                     text=(
@@ -212,7 +214,9 @@ simulation_configs = simulation_configs.map((sim) =>
                                             with v3.VTooltip(
                                                 text="Toggle simulation inclusion",
                                             ):
-                                                with v3.Template(v_slot_activator="{ props }"):
+                                                with v3.Template(
+                                                    v_slot_activator="{ props }"
+                                                ):
                                                     v3.VCheckbox(
                                                         v_bind="props",
                                                         model_value=(
@@ -236,7 +240,9 @@ simulation_configs = simulation_configs.map((sim) =>
                                                     "control_simulation_file === entry.path ? 'Control run cannot also be test' : (two_sim_test_simulation_file === entry.path ? 'Current test simulation' : 'Set this simulation as test')",
                                                 ),
                                             ):
-                                                with v3.Template(v_slot_activator="{ props }"):
+                                                with v3.Template(
+                                                    v_slot_activator="{ props }"
+                                                ):
                                                     v3.VBtn(
                                                         v_bind="props",
                                                         text=(

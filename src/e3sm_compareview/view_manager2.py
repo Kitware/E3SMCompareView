@@ -1,14 +1,28 @@
+import asyncio
 import math
 
 import numpy as np
 
-from trame.app import TrameComponent, dataclass
-from trame.ui.html import DivLayout
-from trame.widgets import client, html, rca, vuetify3 as v3
-from trame.decorators import controller
-
+import vtkmodules.vtkRenderingOpenGL2  # noqa: F401
 from paraview import simple
-from vtkmodules.vtkRenderingCore import vtkActor, vtkPolyDataMapper
+from paraview.modules.vtkPVVTKExtensionsInteractionStyle import (
+    vtkPVInteractorStyle,
+    vtkPVTrackballZoom,
+    vtkTrackballPan,
+)
+from trame.app import TrameComponent, dataclass
+from trame.decorators import controller
+from trame.ui.html import DivLayout
+from trame.widgets import client, html, rca
+from trame.widgets import vuetify3 as v3
+from vtkmodules.vtkRenderingCore import (
+    vtkActor,
+    vtkCamera,
+    vtkPolyDataMapper,
+    vtkRenderer,
+    vtkRenderWindow,
+    vtkRenderWindowInteractor,
+)
 
 from e3sm_compareview.components import view as tview
 from e3sm_quickview.presets import COLOR_BLIND_SAFE
@@ -76,7 +90,7 @@ class ViewConfiguration(dataclass.StateDataModel):
 
 
 class VariableView(TrameComponent):
-    def __init__(self, server, source, view_spec, variable_type):
+    def __init__(self, server, source, view_spec, variable_type, camera):
         super().__init__(server)
         self.source = source
         self.view_spec = view_spec
@@ -91,6 +105,8 @@ class VariableView(TrameComponent):
         self.config.base_variable = self.base_variable
         self.config.label = self.display_label
         self.name = f"view_{self.array_name}"
+        self._bounds_key = f"{self.name}_bounds"
+        self._size = (0, 0)
 
         if self.role in ("control", "test", "source"):
             self.config.preset = "navia"
@@ -102,21 +118,10 @@ class VariableView(TrameComponent):
 
         self.disable_render = False
 
-        # ParaView render view
-        self.view = simple.CreateRenderView()
-        self.view.InteractionMode = "2D"
-        self.view.OrientationAxesVisibility = 0
-        self.view.UseColorPaletteForBackground = 0
-        self.view.BackgroundColorMode = "Single Color"
-        self.view.Background = [1, 1, 1]
-        self.view.Background2 = [1, 1, 1]
-        self.view.CameraParallelProjection = 1
-
-        # VTK scene objects
-        self.renderer = self.view.GetRenderer()
-        self.render_window = self.view.GetRenderWindow()
-        self.render_window.SetOffScreenRendering(True)
-        self._camera = self.view.GetActiveCamera()
+        self.renderer = vtkRenderer()
+        self.renderer.SetActiveCamera(camera)
+        self.renderer.SetBackground(1, 1, 1)
+        self._camera = camera
         self.mapper = vtkPolyDataMapper()
         self.actor = vtkActor()
         self.actor.SetMapper(self.mapper)
@@ -154,12 +159,8 @@ class VariableView(TrameComponent):
             eager=True,
         )
 
-        # Flush the initial render once pipeline and actors are connected.
-        simple.Render(self.view)
-
         # GUI
         self._build_ui()
-        self.reset_camera()
 
     def _connect_pipeline_input(self):
         atmosphere_data = self.source.data_reader.vtk_geometry
@@ -177,22 +178,37 @@ class VariableView(TrameComponent):
         self.config.label = self.display_label
         self._connect_pipeline_input()
 
-    def render(self):
-        if self.disable_render or not self.ctx.has(self.name):
-            return
-        self.ctx[self.name].update()
+    @property
+    def bounds(self):
+        return self.state[self._bounds_key]
 
-    def set_camera_modified(self, fn):
-        self._observer = self.camera.AddObserver("ModifiedEvent", fn)
+    @bounds.setter
+    def bounds(self, value):
+        self.renderer.SetViewport(*value)
+        with self.state as state:
+            state[self._bounds_key] = value
+
+    def update_size(self, size):
+        new_size = (int(size["w"] * size["p"]), int(size["h"] * size["p"]))
+        if self._size != new_size:
+            self._size = new_size
+            self.ctrl.size_update()
+
+    @property
+    def size(self):
+        return self._size
+
+    def render(self):
+        if self.disable_render or not self.ctx.view:
+            return
+        self.ctx.view.update()
 
     @property
     def camera(self):
         return self._camera
 
     def reset_camera(self):
-        self.view.InteractionMode = "2D"
-        self.view.ResetActiveCameraToNegativeZ()
-        self.view.ResetCamera(True, 0.9)
+        self.renderer.ResetCameraScreenSpace(0.9)
         self.render()
 
     def update_color_preset(self, name, invert, log_scale, n_colors=255):
@@ -210,7 +226,8 @@ class VariableView(TrameComponent):
         if self.config.use_log_scale != scale_mode:
             self.config.use_log_scale = scale_mode
 
-        # Apply linear first, then scale transform.
+        # ApplyPreset resets range to [0,1], so always apply the linear
+        # preset first, rescale to the current range, then apply transforms
         self._apply_linear_to_lut(invert)
         self.lut.RescaleTransferFunction(*self.config.color_range)
 
@@ -227,20 +244,27 @@ class VariableView(TrameComponent):
         elif scale_mode == "symlog":
             self._apply_symlog_to_lut()
 
+        # Read the actual LUT range (may differ from color_range for log scale)
         ctf = self.lut.GetClientSideObject()
         self.config.effective_color_range = ctf.GetRange()
 
+        # Force mapper to pick up LUT changes
         self.mapper.SetLookupTable(ctf)
         self.mapper.Modified()
         self.render()
 
     def _apply_linear_to_lut(self, invert=False):
+        """Apply preset with linear scale."""
         self.lut.UseLogScale = 0
         self.lut.ApplyPreset(self.config.preset, True)
         if invert:
             self.lut.InvertTransferFunction()
 
     def _apply_log_to_lut(self):
+        """Transform the already-prepared LUT to log scale.
+
+        Log scale requires all positive values, so clamp the range if needed.
+        """
         ctf = self.lut.GetClientSideObject()
         x_min, x_max = ctf.GetRange()
         if x_max <= 0:
@@ -254,6 +278,17 @@ class VariableView(TrameComponent):
     def _apply_symlog_to_lut(
         self, linthresh=None, linscale=1.0, base=10, n_samples=256
     ):
+        """Transform the already-prepared LUT to symmetric log scale.
+
+        Uses:
+        - Linear for |x| <= linthresh
+        - Logarithmic for |x| > linthresh
+        with continuity at the boundary.
+
+        Samples colors from the linear preset and redistributes them
+        across the data range using symlog spacing.
+        """
+        # Get the current data range from the LUT
         ctf = self.lut.GetClientSideObject()
         x_min, x_max = ctf.GetRange()
         data_range = x_max - x_min
@@ -270,15 +305,18 @@ class VariableView(TrameComponent):
 
         def symlog(x):
             abs_x = np.abs(x)
+            # Clip to avoid log(0); values <= linthresh use linear branch anyway
             safe_abs = np.maximum(abs_x, linthresh)
-            return np.where(
+            out = np.where(
                 abs_x <= linthresh,
                 x * linscale_adj,
                 np.sign(x)
                 * linthresh
                 * (linscale_adj + np.log(safe_abs / linthresh) / log_base),
             )
+            return out
 
+        # Sample colors from the linear LUT at uniform positions
         rgb = [0.0, 0.0, 0.0]
         s_min = symlog(x_min)
         s_max = symlog(x_max)
@@ -288,8 +326,12 @@ class VariableView(TrameComponent):
 
         new_rgb_points = []
         for i in range(n_samples):
+            # Uniform position in data space
             t = i / (n_samples - 1)
             x_data = x_min + t * data_range
+
+            # Map x_data through symlog, normalize to [0,1], then look up
+            # the color at the corresponding linear position
             s_val = symlog(x_data)
             s_t = (s_val - s_min) / s_range
             x_lookup = x_min + s_t * data_range
@@ -298,6 +340,7 @@ class VariableView(TrameComponent):
                 [float(x_data), float(rgb[0]), float(rgb[1]), float(rgb[2])]
             )
 
+        # Write back through the proxy so state stays in sync
         self.lut.RGBPoints = new_rgb_points
 
     def color_range_str_to_float(self, color_value_min, color_value_max):
@@ -438,7 +481,6 @@ class VariableView(TrameComponent):
         if not ticks:
             self.config.color_ticks = []
             return
-
         # The colorbar image is always rendered from the linear LUT, so
         # sample contrast colors using the linear color_range.
         ctf = self.lut.GetClientSideObject()
@@ -448,13 +490,11 @@ class VariableView(TrameComponent):
         if cr_range == 0:
             self.config.color_ticks = []
             return
-
         for tick in ticks:
             t = tick["position"] / 100.0
             value = cr_min + t * cr_range
             ctf.GetColor(value, rgb)
             tick["color"] = tick_contrast_color(rgb[0], rgb[1], rgb[2])
-
         self.config.color_ticks = ticks
 
     def _build_ui(self):
@@ -544,12 +584,11 @@ class VariableView(TrameComponent):
                         """,
                     ),
                 ):
-                    display = rca.RemoteControlledArea(display="image")
-                    handler = display.create_view_handler(
-                        self.render_window,
-                        encoder="turbo-jpeg",
+                    rca.ImageRegion(
+                        enable_interaction=True,
+                        bounds=(self._bounds_key, (0, 0, 1, 1)),
+                        size=(self.update_size, "[$event]"),
                     )
-                    self.ctx[self.name] = handler
 
                 tview.create_bottom_bar(self.config, self.update_color_preset)
 
@@ -557,7 +596,41 @@ class VariableView(TrameComponent):
 class ViewManager(TrameComponent):
     def __init__(self, server, source):
         super().__init__(server)
-        self.use_image_stream = False
+        self.use_image_stream = True
+        self._camera = vtkCamera(parallel_projection=1)
+        self._render_window = vtkRenderWindow()
+        self._render_window.OffScreenRenderingOn()
+        self._style = vtkPVInteractorStyle()
+        self._style.AddManipulator(
+            vtkPVTrackballZoom(
+                button=3,
+                shift=0,
+                control=0,
+            )
+        )
+        self._style.AddManipulator(
+            vtkPVTrackballZoom(
+                button=1,
+                shift=1,
+                control=0,
+            )
+        )
+        self._style.AddManipulator(
+            vtkTrackballPan(
+                button=1,
+                shift=0,
+                control=0,
+            )
+        )
+        self._render_window_interactor = vtkRenderWindowInteractor(
+            interactor_style=self._style
+        )
+        self._render_window_interactor.SetRenderWindow(self._render_window)
+
+        self.loop = asyncio.get_event_loop()
+        self.layout_dirty = True
+        self.pending_reset_camera = 1
+        self.pending_render = False
         self.source = source
         self._var2view = {}
         self._camera_sync_in_progress = False
@@ -614,23 +687,46 @@ class ViewManager(TrameComponent):
             }
         )
 
-    def reset_camera(self):
-        views = self._active_views()
-        for view in views:
-            view.disable_render = True
+    def reset_camera(self, render=True):
+        if self.layout_dirty or not self._last_vars:
+            self.pending_reset_camera = 1
+            return
 
-        for view in views:
-            view.reset_camera()
+        view_to_reset = None
 
-        for view in views:
-            view.disable_render = False
-            view.render()
+        active_layout = self.state.active_layout or ""
+        if active_layout.startswith("view_"):
+            for view in self._var2view.values():
+                if view.name == active_layout:
+                    view_to_reset = view
+                    break
+
+        if not view_to_reset:
+            for var_type, var_names in self._last_vars.items():
+                for var_name in var_names:
+                    for view_spec in self.get_view_specs(var_name):
+                        view_to_reset = self.get_view(view_spec, var_type)
+                        if view_to_reset:
+                            break
+                    if view_to_reset:
+                        break
+
+                if view_to_reset:
+                    break
+
+        if view_to_reset:
+            view_to_reset.reset_camera()
+            self.pending_reset_camera = 0
+        else:
+            self.pending_reset_camera = 1
+
+        if render and view_to_reset:
+            self.render()
 
     def get_active_camera(self):
-        views = self._active_views()
-        if not views:
+        if not self._var2view:
             return None
-        camera = views[0].camera
+        camera = self._camera
         return {
             "position": camera.GetPosition(),
             "focal_point": camera.GetFocalPoint(),
@@ -649,29 +745,42 @@ class ViewManager(TrameComponent):
         self._camera_sync_in_progress = True
 
         try:
-            for var_view in self._active_views():
-                cam = var_view.camera
-                cam.SetPosition(*camera_state["position"])
-                cam.SetFocalPoint(*camera_state["focal_point"])
-                cam.SetViewUp(*camera_state["view_up"])
-                cam.SetParallelProjection(camera_state["parallel_projection"])
-                cam.SetParallelScale(camera_state["parallel_scale"])
-                cam.SetViewAngle(camera_state["view_angle"])
-                cam.SetClippingRange(*camera_state["clipping_range"])
-                var_view.render()
+            self._camera.SetPosition(*camera_state["position"])
+            self._camera.SetFocalPoint(*camera_state["focal_point"])
+            self._camera.SetViewUp(*camera_state["view_up"])
+            self._camera.SetParallelProjection(camera_state["parallel_projection"])
+            self._camera.SetParallelScale(camera_state["parallel_scale"])
+            self._camera.SetViewAngle(camera_state["view_angle"])
+            self._camera.SetClippingRange(*camera_state["clipping_range"])
+            self.render()
         finally:
             self._camera_sync_in_progress = False
 
+    @controller.set("size_update")
+    def on_size_update(self):
+        if not self.layout_dirty or not self.pending_render:
+            self.pending_render = True
+            self.loop.call_later(0.1, self.render)
+        self.layout_dirty = True
+
     def render(self):
-        for view in self._active_views():
-            view.render()
+        if self.layout_dirty:
+            self.compute_layout()
+
+        if self.pending_reset_camera:
+            self.reset_camera(False)
+
+        if self.ctx.view:
+            self.ctx.view.update()
+            self.pending_render = False
 
     def update_color_range(self):
         for view in self._active_views():
             view.update_color_range()
+        self.render()
 
     def refresh_pipeline_inputs(self):
-        for view in self._active_views():
+        for view in self._var2view.values():
             view._connect_pipeline_input()
 
     def refresh_view_specs(self, variables=None):
@@ -705,9 +814,14 @@ class ViewManager(TrameComponent):
         if view is None:
             view = self._var2view.setdefault(
                 array_name,
-                VariableView(self.server, self.source, view_spec, variable_type),
+                VariableView(
+                    self.server,
+                    self.source,
+                    view_spec,
+                    variable_type,
+                    self._camera,
+                ),
             )
-            view.set_camera_modified(self.sync_camera)
         else:
             view.update_view_spec(view_spec)
 
@@ -721,19 +835,85 @@ class ViewManager(TrameComponent):
             self.state.selected_columns,
         )
 
-    def sync_camera(self, camera, *_):
-        if self._camera_sync_in_progress:
+    def compute_layout(self, variables=None):
+        if variables is None:
+            variables = self._last_vars
+
+        if not variables:
             return
-        self._camera_sync_in_progress = True
 
-        for var_view in self._active_views():
-            cam = var_view.camera
-            if cam is camera:
-                continue
-            cam.DeepCopy(camera)
-            var_view.render()
+        self.layout_dirty = False
 
-        self._camera_sync_in_progress = False
+        views = []
+        view_size = [0, 0]
+        fullscreen_view = None
+        fullscreen_view_name = self.state.active_layout or ""
+
+        for var_type, var_names in variables.items():
+            for var_name in var_names:
+                for view_spec in self.get_view_specs(var_name):
+                    view = self.get_view(view_spec, var_type)
+
+                    if view.name == fullscreen_view_name:
+                        fullscreen_view = view
+                        break
+                    if view.size[1]:
+                        views.append(view)
+                        view_size[0] = max(view_size[0], view.size[0])
+                        view_size[1] = max(view_size[1], view.size[1])
+                    else:
+                        self.layout_dirty = True
+
+                if fullscreen_view:
+                    break
+
+            if fullscreen_view:
+                break
+
+        if fullscreen_view:
+            view_size = fullscreen_view.size
+            views = [fullscreen_view]
+        else:
+            views = [
+                view
+                for index, view in sorted(
+                    enumerate(views),
+                    key=lambda item: (
+                        item[1].config.order or len(views) + item[0],
+                        item[0],
+                    ),
+                )
+            ]
+
+        size = len(views)
+        if size == 0:
+            return
+
+        width_count = math.ceil(math.sqrt(size))
+        height_count = math.ceil(size / width_count)
+        full_size = [
+            view_size[0] * width_count,
+            view_size[1] * height_count,
+        ]
+
+        self._render_window.SetSize(*full_size)
+        renderers = list(self._render_window.GetRenderers())
+        for renderer in renderers:
+            self._render_window.RemoveRenderer(renderer)
+
+        dx = 1.0 / width_count
+        dy = 1.0 / height_count
+        for index, view in enumerate(views):
+            x_index = index % width_count
+            y_index = int(index / width_count)
+            bounds = (
+                x_index * dx,
+                y_index * dy,
+                (x_index + 1) * dx,
+                (y_index + 1) * dy,
+            )
+            view.bounds = bounds
+            self._render_window.AddRenderer(view.renderer)
 
     @controller.set("swap_variables")
     def swap_variable(self, variable_a, variable_b):
@@ -773,6 +953,7 @@ class ViewManager(TrameComponent):
             variables = self._last_vars
 
         self._last_vars = variables
+        self.compute_layout()
 
         # Create UI based on the selected variables.
         self.state.swap_groups = {}
@@ -913,3 +1094,6 @@ class ViewManager(TrameComponent):
         for config in orders_to_update:
             config.order = next_order
             next_order += 1
+
+        self.layout_dirty = True
+        self.compute_layout()

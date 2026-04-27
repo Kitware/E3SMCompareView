@@ -20,14 +20,6 @@ def sort_by_name(e):
     return e.get("name")
 
 
-def to_type(e):
-    return e.get("type", "")
-
-
-def to_suffix(e):
-    return Path(e.get("name", "")).suffix
-
-
 class ParaViewFileBrowser(TrameComponent):
     def __init__(
         self,
@@ -244,26 +236,6 @@ class ParaViewFileBrowser(TrameComponent):
     def goto_parent(self):
         self._current_path = self._current_path.parent
         self.update_listing()
-
-    def open_dataset(self, entry):
-        event = {}
-        if to_type(entry) == "group":
-            files = [str(self._current_path / f) for f in entry.get("files")]
-            source = simple.OpenDataFile(files)
-            representation = simple.Show(source)
-            view = simple.Render()
-            event = dict(
-                source=source, representation=representation, view=view, type="group"
-            )
-        else:
-            source = simple.OpenDataFile(str(self._current_path / entry.get("name")))
-            representation = simple.Show(source)
-            view = simple.Render()
-            event = dict(
-                source=source, representation=representation, view=view, type="dataset"
-            )
-
-        return event
 
     def select_entry(self, entry):
         with self.state as state:

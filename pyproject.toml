@@ -24,7 +24,7 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy<2.4",
     "trame>=3.12",
-    "trame-vtk>=2.10",
+    "trame-rca[turbo]>=2.3.1",
     "trame-vuetify>=3.1",
     "pyproj>=3.6.1",
     "netCDF4>=1.6.5",
@@ -32,7 +32,7 @@ dependencies = [
     "trame-components",
     "trame-tauri>=0.6.2",
     "Pillow",
-    "e3sm-quickview>=2.2.0",
+    "e3sm-quickview>=2.5.1",
 ]
 
 [project.optional-dependencies]

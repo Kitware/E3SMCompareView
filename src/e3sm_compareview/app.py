@@ -6,12 +6,10 @@ import os
 import time
 from pathlib import Path
 
-from paraview import servermanager
-
 from trame.app import TrameApp, asynchronous, file_upload
 from trame.decorators import change, controller, life_cycle, trigger
 from trame.ui.vuetify3 import VAppLayout
-from trame.widgets import client, dataclass, html, tauri
+from trame.widgets import client, dataclass, html, rca, tauri
 from trame.widgets import trame as tw
 from trame.widgets import vuetify3 as v3
 
@@ -34,7 +32,6 @@ from e3sm_compareview.components import (
     toolbars,
 )
 from e3sm_compareview.pipeline import EAMVisSource
-from e3sm_compareview.view_manager import ViewManager
 from e3sm_quickview.components import css, dialogs
 from e3sm_quickview import module as qv_module
 from e3sm_quickview.utils import cli, compute
@@ -42,6 +39,17 @@ from e3sm_quickview.utils import cli, compute
 v3.enable_lab()
 
 EXCLUSIVE_DRAWERS = {"select-fields", "select-simulations"}
+
+
+def create_view_manager(single_view, server, source):
+    if single_view:
+        from e3sm_compareview.view_manager2 import ViewManager
+
+        return ViewManager(server, source)
+
+    from e3sm_compareview.view_manager import ViewManager
+
+    return ViewManager(server, source)
 
 
 class EAMApp(TrameApp):
@@ -101,7 +109,11 @@ class EAMApp(TrameApp):
         self.source = EAMVisSource()
 
         # Helpers
-        self.view_manager = ViewManager(self.server, self.source)
+        self.view_manager = create_view_manager(
+            args.fast,
+            self.server,
+            self.source,
+        )
         self.file_browser = file_browser.ParaViewFileBrowser(
             self.server,
             prefix="pv_files",
@@ -259,10 +271,21 @@ class EAMApp(TrameApp):
                                 toolbars.Animation()
 
                             # View of all the variables
-                            client.ServerTemplate(
-                                name=("active_layout", "auto_layout"),
-                                v_if="variables_selected.length",
-                            )
+                            if self.view_manager.use_image_stream:
+                                with rca.ImageStream(
+                                    self.view_manager._render_window,
+                                    encoder="turbo-jpeg",
+                                    ctx_name="view",
+                                ):
+                                    client.ServerTemplate(
+                                        name=("active_layout", "auto_layout"),
+                                        v_if="variables_selected.length",
+                                    )
+                            else:
+                                client.ServerTemplate(
+                                    name=("active_layout", "auto_layout"),
+                                    v_if="variables_selected.length",
+                                )
 
                             # Show documentation when no variable selected
                             with html.Div(v_if="!variables_selected.length"):
@@ -278,7 +301,7 @@ class EAMApp(TrameApp):
 
         vars_per_type = defaultdict(list)
         for var in self.state.variables_selected:
-            type = self.source.varmeta[var].dimensions
+            type = self.source.data_reader.varmeta[var].dimensions
             vars_per_type[type].append(var)
 
         return dict(vars_per_type)
@@ -331,14 +354,17 @@ class EAMApp(TrameApp):
                 "type": ", ".join(var.dimensions),
                 "id": f"{var.name}",
             }
-            for _, var in self.source.varmeta.items()
+            for _, var in self.source.data_reader.varmeta.items()
         ]
 
         from e3sm_quickview.utils.colors import get_type_color
 
         # Build dynamic type-color mapping.
         dim_types = sorted(
-            set(", ".join(var.dimensions) for var in self.source.varmeta.values())
+            set(
+                ", ".join(var.dimensions)
+                for var in self.source.data_reader.varmeta.values()
+            )
         )
         self.state.variable_types = [
             {"name": dim_type, "color": get_type_color(index)}
@@ -357,16 +383,19 @@ class EAMApp(TrameApp):
         return True
 
     def _refresh_source_simulations(self):
-        if not self.source.conn_file:
+        if not self.source.data_reader.conn_file:
             return
 
         self.source.Update(
             simulation_configs=self.active_simulation_configs,
-            conn_file=self.source.conn_file,
+            conn_file=self.source.data_reader.conn_file,
         )
-        if self.source.valid and self.source.varmeta is not None:
+        if (
+            self.source.data_reader.valid
+            and self.source.data_reader.varmeta is not None
+        ):
             self._update_variable_listing()
-            valid_variables = set(self.source.varmeta)
+            valid_variables = set(self.source.data_reader.varmeta)
             self.state.variables_selected = [
                 var for var in self.state.variables_selected if var in valid_variables
             ]
@@ -429,7 +458,7 @@ class EAMApp(TrameApp):
         views_to_export = state_content["views"] = []
         for view_type, var_names in active_variables.items():
             for var_name in var_names:
-                for view_spec in self.source.get_view_specs(
+                for view_spec in self.source.data_reader.get_view_specs(
                     var_name,
                     self.state.comparison_mode,
                     self.state.comparison_type,
@@ -551,7 +580,6 @@ class EAMApp(TrameApp):
         self.state.time_idx = 0
         self.state.timestamps = []
 
-        self.state.data_files = simulation_files
         # Initialize simulation selection using the current files and saved labels.
         simulation_configs, control_file = build_simulation_configs(
             simulation_files,
@@ -570,18 +598,15 @@ class EAMApp(TrameApp):
             conn_file=connectivity,
         )
 
-        self.file_browser.loading_completed(self.source.valid)
+        self.file_browser.loading_completed(self.source.data_reader.valid)
 
-        if self.source.valid:
+        if self.source.data_reader.valid:
             with self.state as s:
-                s.active_tools = list(
-                    set(
-                        (
-                            "select-simulations",
-                            *(tool for tool in s.active_tools if tool != "load-data"),
-                        )
-                    )
-                )
+                next_tools = [
+                    "select-simulations",
+                    *(tool for tool in s.active_tools if tool != "load-data"),
+                ]
+                s.active_tools = list(dict.fromkeys(next_tools))
 
                 self._update_variable_listing()
 
@@ -589,7 +614,7 @@ class EAMApp(TrameApp):
                 n_cols = 0
                 available_tracks = []
                 dim_units = {}
-                for name, dim in self.source.dimmeta.items():
+                for name, dim in self.source.data_reader.dimmeta.items():
                     values = dim.data
                     dim_size = getattr(dim, "size", None)
                     # Convert to list for JSON serialization
@@ -613,7 +638,6 @@ class EAMApp(TrameApp):
                             dim_units[name] = units
 
                 self.state.dim_units = dim_units
-                self.state.toolbar_slider_cols = 12 / n_cols if n_cols else 12
                 self.state.animation_tracks = available_tracks
                 self.state.available_animation_tracks = available_tracks
                 self.state.animation_track = (
@@ -671,7 +695,7 @@ class EAMApp(TrameApp):
                 else None
             )
 
-            self.source.LoadVariables(flattened_vars)
+            self.source.data_reader.load_variables(flattened_vars)
 
             # Trigger source update + compute avg
             with self.state:
@@ -682,10 +706,13 @@ class EAMApp(TrameApp):
             active_simulations = self.active_simulation_configs
             self.source.Update(
                 simulation_configs=active_simulations,
-                conn_file=self.source.conn_file,
+                conn_file=self.source.data_reader.conn_file,
                 variables=flattened_vars,
                 force_reload=True,
             )
+
+            if self.state.comparison_mode == "two-sim":
+                self.view_manager.reset_view_orders(vars_to_show)
 
             # Update views in layout
             with self.state:
@@ -729,7 +756,10 @@ class EAMApp(TrameApp):
     def _on_selected_columns_change(self, **_):
         if self.state.comparison_mode != "two-sim" or not self.state.variables_loaded:
             return
+        camera = self.view_manager.get_active_camera()
+        self.view_manager.reset_view_orders(self.selected_variables)
         self._rebuild_active_layout(update_color=True)
+        self.view_manager.sync_active_views_to_camera(camera)
 
     @change(
         "simulation_configs",
@@ -767,8 +797,12 @@ class EAMApp(TrameApp):
             self.state.variables_loaded = False
             return
 
-        if labels_changed and self.state.variables_selected and self.source.varmeta:
-            self.source.RefreshViewSpecs(self.active_simulation_configs)
+        if (
+            labels_changed
+            and self.state.variables_selected
+            and self.source.data_reader.varmeta
+        ):
+            self.source.data_reader.refresh_view_specs(self.active_simulation_configs)
             self.view_manager.refresh_view_specs(self.selected_variables)
 
     @change("projection")
@@ -776,6 +810,7 @@ class EAMApp(TrameApp):
         proj_str = self._projection_name(projection)
         self.source.UpdateProjection(proj_str)
         self.source.UpdatePipeline()
+        self.view_manager.refresh_pipeline_inputs()
         self.view_manager.reset_camera()
 
         # Hack to force reset_camera for "cyl mode"
@@ -808,17 +843,20 @@ class EAMApp(TrameApp):
     def _on_slicing_change(self, var, ind_var, **_):
         self.source.UpdateSlicing(var, self.state[ind_var])
         self.source.UpdatePipeline()
+        self.view_manager.refresh_pipeline_inputs()
 
         self.view_manager.update_color_range()
         self.view_manager.render()
 
         # Update avg computation
         # Get area variable to calculate weighted average
-        data = self.source.views["atmosphere_data"]
-        vtk_data = servermanager.Fetch(data)
-        self.state.fields_avgs = compute.extract_avgs(
-            vtk_data, self.selected_variable_names
-        )
+        vtk_data = self.source.data_reader.get_output_dataset()
+        if vtk_data is not None:
+            self.state.fields_avgs = compute.extract_avgs(
+                vtk_data, self.selected_variable_names
+            )
+        else:
+            self.state.fields_avgs = {}
 
     @change(
         "crop_longitude",
@@ -836,6 +874,7 @@ class EAMApp(TrameApp):
         self.source.ApplyClipping(crop_longitude, crop_latitude)
         self.source.UpdateProjection(self._projection_name(self.state.projection))
         self.source.UpdatePipeline()
+        self.view_manager.refresh_pipeline_inputs()
         self.view_manager.reset_camera()
 
         self.view_manager.update_color_range()
@@ -843,11 +882,13 @@ class EAMApp(TrameApp):
 
         # Update avg computation
         # Get area variable to calculate weighted average
-        data = self.source.views["atmosphere_data"]
-        vtk_data = servermanager.Fetch(data)
-        self.state.fields_avgs = compute.extract_avgs(
-            vtk_data, self.selected_variable_names
-        )
+        vtk_data = self.source.data_reader.get_output_dataset()
+        if vtk_data is not None:
+            self.state.fields_avgs = compute.extract_avgs(
+                vtk_data, self.selected_variable_names
+            )
+        else:
+            self.state.fields_avgs = {}
 
     def toggle_toolbar(self, toolbar_name=None):
         if toolbar_name is None:
