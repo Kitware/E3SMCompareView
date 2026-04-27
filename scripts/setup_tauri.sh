@@ -10,6 +10,7 @@ PVPYTHON_PATH=$(which pvpython.exe) || PVPYTHON_PATH=$(which pvpython)
 python -m PyInstaller --clean --noconfirm \
         --distpath src-tauri \
         --name server --hidden-import pkgutil \
+        --exclude-module turbojpeg \
         --collect-all trame \
         --collect-all trame_client \
         --collect-all trame_dataclass \
