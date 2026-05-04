@@ -1,6 +1,6 @@
 from trame.assets.local import LocalFileManager
 
 ASSETS = LocalFileManager(__file__)
-ASSETS.url("icon", "icon-192.png")
-ASSETS.url("logo", "icon-full.png")
+ASSETS.url("icon", "app-icon.png")
+ASSETS.url("logo", "app-icon.png")
 ASSETS.url("banner", "banner.jpg")
