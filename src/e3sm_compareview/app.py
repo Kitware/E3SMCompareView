@@ -342,6 +342,13 @@ class EAMApp(TrameApp):
         if target_path != self.state.two_sim_test_simulation_file:
             self.state.two_sim_test_simulation_file = target_path
 
+    def _sim_mode(self, count):
+        if count == 2:
+            return "two-sim"
+        if count > 2:
+            return "multi-sim"
+        return self.state.comparison_mode
+
     def _selected_variables_to_show(self):
         vars_to_show = self.selected_variables
         return vars_to_show if any(vars_to_show.values()) else None
@@ -588,6 +595,9 @@ class EAMApp(TrameApp):
         )
         self.state.simulation_configs = simulation_configs
         self.state.control_simulation_file = control_file
+        self.state.comparison_mode = self._sim_mode(
+            len(simulation_configs)
+        )
         self._ensure_two_sim_target()
 
         await asyncio.sleep(0.1)
