@@ -17,14 +17,6 @@ DENSITY = {
     "animation-controls": "compact",
 }
 
-SIZES = {
-    "adjust-layout": 49,
-    "comparison-controls": 49,
-    "adjust-databounds": 65,
-    "select-slice-time": 70,
-    "animation-controls": 49,
-}
-
 DEFAULT_STYLES = {
     "color": "white",
     "classes": "border-b-thin",
