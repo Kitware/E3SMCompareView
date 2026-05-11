@@ -197,6 +197,12 @@ class EAMApp(TrameApp):
                 SaveState="trigger('download_state_dialog')",
                 UploadState="utils.get('document').querySelector('#fileUpload').click()",
                 ToggleHelp="compact_drawer = !compact_drawer",
+                PanLeft=(self.view_manager.pan, "[1, 0]"),
+                PanRight=(self.view_manager.pan, "[-1, 0]"),
+                PanUp=(self.view_manager.pan, "[0, -1]"),
+                PanDown=(self.view_manager.pan, "[0, 1]"),
+                ZoomIn=(self.view_manager.zoom, "[0.83]"),
+                ZoomOut=(self.view_manager.zoom, "[1.2]"),
             ) as mt:
                 mt.bind(["z"], "ResetCamera")
                 mt.bind(["alt+0", "0"], "SizeAuto")
@@ -228,6 +234,14 @@ class EAMApp(TrameApp):
 
                 mt.bind("esc", "RemoveAllToolbars")
 
+                mt.bind("left", "PanLeft", stop_propagation=True)
+                mt.bind("right", "PanRight", stop_propagation=True)
+                mt.bind("up", "PanUp", stop_propagation=True)
+                mt.bind("down", "PanDown", stop_propagation=True)
+
+                mt.bind("shift+up", "ZoomIn", stop_propagation=True)
+                mt.bind("shift+down", "ZoomOut", stop_propagation=True)
+
             # Native Dialogs
             client.ClientTriggers(mounted="is_tauri = !!window.__TAURI__")
             with tauri.Dialog() as dialog:
@@ -253,7 +267,12 @@ class EAMApp(TrameApp):
                                     "toolbar_size",
                                     style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;",
                                 )
-                                toolbars.Layout(apply_size=self.view_manager.apply_size)
+                                toolbars.Layout(
+                                    apply_size=self.view_manager.apply_size,
+                                    zoom=self.view_manager.zoom,
+                                    pan=self.view_manager.pan,
+                                    reset_camera=self.view_manager.reset_camera,
+                                )
                                 toolbars.ComparisonMode()
                                 toolbars.Cropping()
                                 toolbars.DataSelection()

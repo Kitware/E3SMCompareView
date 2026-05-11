@@ -2,8 +2,10 @@ import asyncio
 import math
 
 import numpy as np
-
 import vtkmodules.vtkRenderingOpenGL2  # noqa: F401
+from e3sm_quickview.presets import COLOR_BLIND_SAFE
+from e3sm_quickview.utils.color import COLORBAR_CACHE, lut_to_img
+from e3sm_quickview.utils.math import compute_color_ticks, tick_contrast_color
 from paraview import simple
 from paraview.modules.vtkPVVTKExtensionsInteractionStyle import (
     vtkPVInteractorStyle,
@@ -26,9 +28,6 @@ from vtkmodules.vtkRenderingCore import (
 
 from e3sm_compareview.components import view as tview
 from e3sm_compareview.utils import format_color_range_endpoints
-from e3sm_quickview.presets import COLOR_BLIND_SAFE
-from e3sm_quickview.utils.color import COLORBAR_CACHE, lut_to_img
-from e3sm_quickview.utils.math import compute_color_ticks, tick_contrast_color
 
 
 def auto_size_to_col(size):
@@ -586,7 +585,7 @@ class VariableView(TrameComponent):
                     style=(
                         """
                         {
-                            aspectRatio: active_layout === 'auto_layout' ? aspect_ratio : null,
+                            aspectRatio: active_layout === 'auto_layout' ? 1/aspect_ratio : null,
                             height: active_layout !== 'auto_layout' ? 'calc(100% - 2.4rem)' : null,
                             pointerEvents: lock_views ? 'none': null,
                         }
@@ -594,7 +593,7 @@ class VariableView(TrameComponent):
                     ),
                 ):
                     rca.ImageRegion(
-                        enable_interaction=True,
+                        enable_interaction=False,
                         bounds=(self._bounds_key, (0, 0, 1, 1)),
                         size=(self.update_size, "[$event]"),
                     )
@@ -642,7 +641,6 @@ class ViewManager(TrameComponent):
         self.pending_render = False
         self.source = source
         self._var2view = {}
-        self._camera_sync_in_progress = False
         self._last_vars = {}
         self._active_configs = {}
 
@@ -732,6 +730,33 @@ class ViewManager(TrameComponent):
         if render and view_to_reset:
             self.render()
 
+    def zoom(self, factor):
+        self._camera.SetParallelScale(self._camera.GetParallelScale() * factor)
+        self.render()
+
+    def get_zoom(self):
+        return self._camera.GetParallelScale()
+
+    def set_zoom(self, scale):
+        if scale is None:
+            return
+        self._camera.SetParallelScale(scale)
+        self.render()
+
+    def pan(self, dx, dy):
+        cam = self._camera
+        scale = cam.GetParallelScale()
+        step = scale * 0.1
+        pos = list(cam.GetPosition())
+        foc = list(cam.GetFocalPoint())
+        pos[0] += dx * step
+        pos[1] += dy * step
+        foc[0] += dx * step
+        foc[1] += dy * step
+        cam.SetPosition(*pos)
+        cam.SetFocalPoint(*foc)
+        self.render()
+
     def get_active_camera(self):
         if not self._var2view:
             return None
@@ -745,25 +770,6 @@ class ViewManager(TrameComponent):
             "view_angle": camera.GetViewAngle(),
             "clipping_range": camera.GetClippingRange(),
         }
-
-    def sync_active_views_to_camera(self, camera_state):
-        if not camera_state:
-            return
-        if self._camera_sync_in_progress:
-            return
-        self._camera_sync_in_progress = True
-
-        try:
-            self._camera.SetPosition(*camera_state["position"])
-            self._camera.SetFocalPoint(*camera_state["focal_point"])
-            self._camera.SetViewUp(*camera_state["view_up"])
-            self._camera.SetParallelProjection(camera_state["parallel_projection"])
-            self._camera.SetParallelScale(camera_state["parallel_scale"])
-            self._camera.SetViewAngle(camera_state["view_angle"])
-            self._camera.SetClippingRange(*camera_state["clipping_range"])
-            self.render()
-        finally:
-            self._camera_sync_in_progress = False
 
     @controller.set("size_update")
     def on_size_update(self):
