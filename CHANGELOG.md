@@ -2,6 +2,42 @@
 
 <!-- version list -->
 
+## v1.5.0 (2026-05-11)
+
+### Bug Fixes
+
+- **fileBrowser**: Enable latest QuickView usage
+  ([`165ffd7`](https://github.com/Kitware/E3SMQuickCompare/commit/165ffd7a698f08d760682568dab570cbb6ba53b1))
+
+- **icon**: Update web icon
+  ([`b96eb50`](https://github.com/Kitware/E3SMQuickCompare/commit/b96eb50f7ebda9c8fd1b321996749b961d9f64a3))
+
+- **layout**: Properly bind layout toolbar
+  ([`73dc466`](https://github.com/Kitware/E3SMQuickCompare/commit/73dc466c001734f0079938f47b9f8939a10fc297))
+
+- **size**: Better handling of toolbar size
+  ([`4858926`](https://github.com/Kitware/E3SMQuickCompare/commit/48589261b4bc4bbddff8d7414fea62a4639175c9))
+
+- **tauri**: Update icon
+  ([`03b6b6b`](https://github.com/Kitware/E3SMQuickCompare/commit/03b6b6b3be0478a1d28410b4c69c953274a06552))
+
+- **ViewManager**: Remove multi-view implementation
+  ([`5d3f61a`](https://github.com/Kitware/E3SMQuickCompare/commit/5d3f61a9325abad2d057b842a841c16c77efbac3))
+
+- **ViewManager**: Use fast one by default
+  ([`7acbbd0`](https://github.com/Kitware/E3SMQuickCompare/commit/7acbbd005a8ddcaf3a03cbd172467016c5ea3aa6))
+
+### Continuous Integration
+
+- **mac**: Fix pyinstaller failure on turbojpeg
+  ([`0cde19f`](https://github.com/Kitware/E3SMQuickCompare/commit/0cde19f7e974e6b0d6730ac34294fe644ae686c7))
+
+### Features
+
+- Automatically toggle two-sim/multi-sim based on sim count
+  ([`88ed6e7`](https://github.com/Kitware/E3SMQuickCompare/commit/88ed6e74e7a3edaeeec718ba14bc840481e170ac))
+
+
 ## v1.4.0 (2026-04-27)
 
 ### Bug Fixes
