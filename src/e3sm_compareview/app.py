@@ -6,6 +6,9 @@ import os
 import time
 from pathlib import Path
 
+from e3sm_quickview import module as qv_module
+from e3sm_quickview.components import css, dialogs
+from e3sm_quickview.utils import cli, compute
 from trame.app import TrameApp, asynchronous, file_upload
 from trame.decorators import change, controller, life_cycle, trigger
 from trame.ui.vuetify3 import VAppLayout
@@ -28,28 +31,17 @@ from e3sm_compareview.components import (
     drawers,
     file_browser,
     simulation_selection,
-    tools as nav_tools,
     toolbars,
 )
+from e3sm_compareview.components import (
+    tools as nav_tools,
+)
 from e3sm_compareview.pipeline import EAMVisSource
-from e3sm_quickview.components import css, dialogs
-from e3sm_quickview import module as qv_module
-from e3sm_quickview.utils import cli, compute
+from e3sm_compareview.view_manager2 import ViewManager
 
 v3.enable_lab()
 
 EXCLUSIVE_DRAWERS = {"select-fields", "select-simulations"}
-
-
-def create_view_manager(single_view, server, source):
-    if single_view:
-        from e3sm_compareview.view_manager2 import ViewManager
-
-        return ViewManager(server, source)
-
-    from e3sm_compareview.view_manager import ViewManager
-
-    return ViewManager(server, source)
 
 
 class EAMApp(TrameApp):
@@ -109,11 +101,7 @@ class EAMApp(TrameApp):
         self.source = EAMVisSource()
 
         # Helpers
-        self.view_manager = create_view_manager(
-            args.fast,
-            self.server,
-            self.source,
-        )
+        self.view_manager = ViewManager(self.server, self.source)
         self.file_browser = file_browser.ParaViewFileBrowser(
             self.server,
             prefix="pv_files",
@@ -271,17 +259,11 @@ class EAMApp(TrameApp):
                                 toolbars.Animation()
 
                             # View of all the variables
-                            if self.view_manager.use_image_stream:
-                                with rca.ImageStream(
-                                    self.view_manager._render_window,
-                                    encoder="turbo-jpeg",
-                                    ctx_name="view",
-                                ):
-                                    client.ServerTemplate(
-                                        name=("active_layout", "auto_layout"),
-                                        v_if="variables_selected.length",
-                                    )
-                            else:
+                            with rca.ImageStream(
+                                self.view_manager._render_window,
+                                encoder="turbo-jpeg",
+                                ctx_name="view",
+                            ):
                                 client.ServerTemplate(
                                     name=("active_layout", "auto_layout"),
                                     v_if="variables_selected.length",
@@ -595,9 +577,7 @@ class EAMApp(TrameApp):
         )
         self.state.simulation_configs = simulation_configs
         self.state.control_simulation_file = control_file
-        self.state.comparison_mode = self._sim_mode(
-            len(simulation_configs)
-        )
+        self.state.comparison_mode = self._sim_mode(len(simulation_configs))
         self._ensure_two_sim_target()
 
         await asyncio.sleep(0.1)
