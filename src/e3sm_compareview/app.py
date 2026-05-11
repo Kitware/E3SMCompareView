@@ -37,7 +37,7 @@ from e3sm_compareview.components import (
     tools as nav_tools,
 )
 from e3sm_compareview.pipeline import EAMVisSource
-from e3sm_compareview.view_manager2 import ViewManager
+from e3sm_compareview.view_manager import ViewManager
 
 v3.enable_lab()
 
