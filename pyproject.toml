@@ -30,7 +30,7 @@ dependencies = [
     "trame-components",
     "trame-tauri>=0.6.2",
     "Pillow",
-    "e3sm-quickview>=2.5.1",
+    "e3sm-quickview>=2.7.6",
 ]
 
 [project.optional-dependencies]
