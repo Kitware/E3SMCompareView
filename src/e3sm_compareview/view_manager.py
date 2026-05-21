@@ -1,21 +1,18 @@
 import asyncio
 import math
 
-import numpy as np
 import vtkmodules.vtkRenderingOpenGL2  # noqa: F401
-from e3sm_quickview.presets import COLOR_BLIND_SAFE
-from e3sm_quickview.utils.color import COLORBAR_CACHE, lut_to_img
-from e3sm_quickview.utils.math import compute_color_ticks, tick_contrast_color
-from paraview import simple
+from e3sm_quickview.components.view import create_size_menu
 from paraview.modules.vtkPVVTKExtensionsInteractionStyle import (
     vtkPVInteractorStyle,
     vtkPVTrackballZoom,
     vtkTrackballPan,
 )
 from trame.app import TrameComponent, dataclass
+from trame.dataclasses.colormaps import ColormapConfig
 from trame.decorators import controller
 from trame.ui.html import DivLayout
-from trame.widgets import client, html, rca
+from trame.widgets import client, colormaps, html, rca
 from trame.widgets import vuetify3 as v3
 from vtkmodules.vtkRenderingCore import (
     vtkActor,
@@ -25,9 +22,6 @@ from vtkmodules.vtkRenderingCore import (
     vtkRenderWindow,
     vtkRenderWindowInteractor,
 )
-
-from e3sm_compareview.components import view as tview
-from e3sm_compareview.utils import format_color_range_endpoints
 
 
 def auto_size_to_col(size):
@@ -58,37 +52,15 @@ COL_SIZE_LOOKUP = {
 }
 
 
-def lut_name(element):
-    return element.get("name").lower()
-
-
 class ViewConfiguration(dataclass.StateDataModel):
     variable: str = dataclass.Sync(str)
     base_variable: str = dataclass.Sync(str, "")
     label: str = dataclass.Sync(str, "")
-    preset: str = dataclass.Sync(str, "BuGnYl")
-    invert: bool = dataclass.Sync(bool, False)
-    color_blind: bool = dataclass.Sync(bool, False)
-    use_log_scale: str = dataclass.Sync(str, "linear")
-    color_value_min: str = dataclass.Sync(str, "0")
-    color_value_max: str = dataclass.Sync(str, "1")
-    color_value_min_valid: bool = dataclass.Sync(bool, True)
-    color_value_max_valid: bool = dataclass.Sync(bool, True)
-    color_range: list[float] = dataclass.Sync(tuple[float, float], (0, 1))
-    override_range: bool = dataclass.Sync(bool, False)
     order: int = dataclass.Sync(int, 0)
     size: int = dataclass.Sync(int, 4)
     offset: int = dataclass.Sync(int, 0)
     break_row: bool = dataclass.Sync(bool, False)
-    menu: bool = dataclass.Sync(bool, False)
     swap_group: list[str] = dataclass.Sync(list[str], list)
-    search: str | None = dataclass.Sync(str)
-    n_colors: int = dataclass.Sync(int, 255)
-    lut_img: str = dataclass.Sync(str)
-    color_ticks: list = dataclass.Sync(list, list)
-    effective_color_range: list[float] = dataclass.Sync(tuple[float, float], (0, 1))
-    color_range_min_label: str = dataclass.Sync(str, "0")
-    color_range_max_label: str = dataclass.Sync(str, "1")
 
 
 class VariableView(TrameComponent):
@@ -130,13 +102,15 @@ class VariableView(TrameComponent):
         self.renderer.AddActor(self.actor)
 
         # Lookup table color management
-        self.lut = simple.GetColorTransferFunction(self.array_name)
-        self.lut.NanOpacity = 0.0
+        self.colormap = ColormapConfig(
+            server,
+            mapper=self.mapper,
+            data_array_fn=lambda: self._get_data_array(self.array_name),
+        ).set_data_array(
+            self.array_name, lambda: self._get_data_array(self.array_name), "cell"
+        )
+        self.colormap.watch(["mapper_change"], lambda *_: self.render())
 
-        self.mapper.SetScalarVisibility(1)
-        self.mapper.SetScalarModeToUseCellFieldData()
-        self.mapper.SelectColorArray(self.array_name)
-        self.mapper.SetLookupTable(self.lut.GetClientSideObject())
         self._connect_pipeline_input()
 
         # Add shared annotation actors
@@ -146,20 +120,6 @@ class VariableView(TrameComponent):
         grid_lines_actor = source.grid_lines.actor
         if grid_lines_actor is not None:
             self.renderer.AddActor(grid_lines_actor)
-
-        # Reactive behavior
-        self.config.watch(
-            ["color_value_min", "color_value_max"],
-            self.color_range_str_to_float,
-        )
-        self.config.watch(
-            ["override_range", "color_range"], self.update_color_range, eager=True
-        )
-        self.config.watch(
-            ["preset", "invert", "use_log_scale", "n_colors"],
-            self.update_color_preset,
-            eager=True,
-        )
 
         # GUI
         self._build_ui()
@@ -212,154 +172,6 @@ class VariableView(TrameComponent):
     def reset_camera(self):
         self.renderer.ResetCameraScreenSpace(0.9)
         self.render()
-
-    def update_color_preset(self, name, invert, log_scale, n_colors=255):
-        if log_scale is True:
-            scale_mode = "log"
-        elif log_scale is False:
-            scale_mode = "linear"
-        else:
-            scale_mode = log_scale
-
-        if scale_mode not in {"linear", "log", "symlog"}:
-            scale_mode = "linear"
-
-        self.config.preset = name
-        if self.config.use_log_scale != scale_mode:
-            self.config.use_log_scale = scale_mode
-
-        # ApplyPreset resets range to [0,1], so always apply the linear
-        # preset first, rescale to the current range, then apply transforms
-        self._apply_linear_to_lut(invert)
-        self.lut.RescaleTransferFunction(*self.config.color_range)
-
-        if n_colors is not None:
-            self.lut.NumberOfTableValues = n_colors
-
-        # Capture the colorbar image and tick marks from the LINEAR LUT
-        # before any log/symlog transform so the bar always looks linear.
-        self.config.lut_img = lut_to_img(self.lut)
-        self._compute_ticks()
-
-        if scale_mode == "log":
-            self._apply_log_to_lut()
-        elif scale_mode == "symlog":
-            self._apply_symlog_to_lut()
-
-        # Read the actual LUT range (may differ from color_range for log scale)
-        ctf = self.lut.GetClientSideObject()
-        self.config.effective_color_range = ctf.GetRange()
-
-        # Force mapper to pick up LUT changes
-        self.mapper.SetLookupTable(ctf)
-        self.mapper.Modified()
-        self.render()
-
-    def _apply_linear_to_lut(self, invert=False):
-        """Apply preset with linear scale."""
-        self.lut.UseLogScale = 0
-        self.lut.ApplyPreset(self.config.preset, True)
-        if invert:
-            self.lut.InvertTransferFunction()
-
-    def _apply_log_to_lut(self):
-        """Transform the already-prepared LUT to log scale.
-
-        Log scale requires all positive values, so clamp the range if needed.
-        """
-        ctf = self.lut.GetClientSideObject()
-        x_min, x_max = ctf.GetRange()
-        if x_max <= 0:
-            return
-        if x_min <= 0:
-            x_min = x_max * 1e-6
-            self.lut.RescaleTransferFunction(x_min, x_max)
-        self.lut.MapControlPointsToLogSpace()
-        self.lut.UseLogScale = 1
-
-    def _apply_symlog_to_lut(
-        self, linthresh=None, linscale=1.0, base=10, n_samples=256
-    ):
-        """Transform the already-prepared LUT to symmetric log scale.
-
-        Uses:
-        - Linear for |x| <= linthresh
-        - Logarithmic for |x| > linthresh
-        with continuity at the boundary.
-
-        Samples colors from the linear preset and redistributes them
-        across the data range using symlog spacing.
-        """
-        # Get the current data range from the LUT
-        ctf = self.lut.GetClientSideObject()
-        x_min, x_max = ctf.GetRange()
-        data_range = x_max - x_min
-        if data_range == 0:
-            return
-
-        if linthresh is None:
-            linthresh = max(abs(x_min), abs(x_max)) * 1e-2
-            if linthresh == 0:
-                linthresh = 1.0
-
-        log_base = np.log(base)
-        linscale_adj = linscale / (1.0 - base**-1)
-
-        def symlog(x):
-            abs_x = np.abs(x)
-            # Clip to avoid log(0); values <= linthresh use linear branch anyway
-            safe_abs = np.maximum(abs_x, linthresh)
-            out = np.where(
-                abs_x <= linthresh,
-                x * linscale_adj,
-                np.sign(x)
-                * linthresh
-                * (linscale_adj + np.log(safe_abs / linthresh) / log_base),
-            )
-            return out
-
-        # Sample colors from the linear LUT at uniform positions
-        rgb = [0.0, 0.0, 0.0]
-        s_min = symlog(x_min)
-        s_max = symlog(x_max)
-        s_range = s_max - s_min
-        if s_range == 0:
-            return
-
-        new_rgb_points = []
-        for i in range(n_samples):
-            # Uniform position in data space
-            t = i / (n_samples - 1)
-            x_data = x_min + t * data_range
-
-            # Map x_data through symlog, normalize to [0,1], then look up
-            # the color at the corresponding linear position
-            s_val = symlog(x_data)
-            s_t = (s_val - s_min) / s_range
-            x_lookup = x_min + s_t * data_range
-            ctf.GetColor(x_lookup, rgb)
-            new_rgb_points.extend(
-                [float(x_data), float(rgb[0]), float(rgb[1]), float(rgb[2])]
-            )
-
-        # Write back through the proxy so state stays in sync
-        self.lut.RGBPoints = new_rgb_points
-
-    def color_range_str_to_float(self, color_value_min, color_value_max):
-        try:
-            min_value = float(color_value_min)
-            self.config.color_value_min_valid = not math.isnan(min_value)
-        except ValueError:
-            self.config.color_value_min_valid = False
-
-        try:
-            max_value = float(color_value_max)
-            self.config.color_value_max_valid = not math.isnan(max_value)
-        except ValueError:
-            self.config.color_value_max_valid = False
-
-        if self.config.color_value_min_valid and self.config.color_value_max_valid:
-            self.config.color_range = (min_value, max_value)
 
     @staticmethod
     def _is_finite_range(data_range):
@@ -446,65 +258,6 @@ class VariableView(TrameComponent):
             return self._get_two_sim_default_range()
         return self._get_multi_sim_default_range()
 
-    def update_color_range(self, *_):
-        if self.config.override_range:
-            skip_update = False
-            if math.isnan(self.config.color_range[0]):
-                skip_update = True
-                self.config.color_value_min_valid = False
-
-            if math.isnan(self.config.color_range[1]):
-                skip_update = True
-                self.config.color_value_max_valid = False
-
-            if skip_update:
-                return
-
-            self.lut.RescaleTransferFunction(*self.config.color_range)
-        else:
-            data_range = self._get_default_range()
-            if data_range is not None:
-                self.config.color_range = data_range
-                self.config.color_value_min = str(data_range[0])
-                self.config.color_value_max = str(data_range[1])
-                self.config.color_value_min_valid = True
-                self.config.color_value_max_valid = True
-                self.lut.RescaleTransferFunction(*data_range)
-        self.update_color_preset(
-            self.config.preset,
-            self.config.invert,
-            self.config.use_log_scale,
-            self.config.n_colors,
-        )
-
-    def _compute_ticks(self):
-        vmin, vmax = self.config.color_range
-        (
-            self.config.color_range_min_label,
-            self.config.color_range_max_label,
-        ) = format_color_range_endpoints(
-            self.config.color_range, self.config.use_log_scale
-        )
-        ticks = compute_color_ticks(vmin, vmax, scale=self.config.use_log_scale, n=5)
-        if not ticks:
-            self.config.color_ticks = []
-            return
-        # The colorbar image is always rendered from the linear LUT, so
-        # sample contrast colors using the linear color_range.
-        ctf = self.lut.GetClientSideObject()
-        rgb = [0.0, 0.0, 0.0]
-        cr_min, cr_max = float(vmin), float(vmax)
-        cr_range = cr_max - cr_min
-        if cr_range == 0:
-            self.config.color_ticks = []
-            return
-        for tick in ticks:
-            t = tick["position"] / 100.0
-            value = cr_min + t * cr_range
-            ctf.GetColor(value, rgb)
-            tick["color"] = tick_contrast_color(rgb[0], rgb[1], rgb[2])
-        self.config.color_ticks = ticks
-
     def _build_ui(self):
         with DivLayout(
             self.server, template_name=self.name, connect_parent=False, classes="h-100"
@@ -522,7 +275,7 @@ class VariableView(TrameComponent):
                     classes="ma-0 pa-0 bg-white text-black d-flex align-center border-b-thin",
                     style="flex-wrap: nowrap;",
                 ):
-                    tview.create_size_menu(self.name, self.config)
+                    create_size_menu(self.name, self.config)
                     with self.config.provide_as("config"):
                         with html.Div(
                             "{{ config.label }}",
@@ -598,7 +351,8 @@ class VariableView(TrameComponent):
                         size=(self.update_size, "[$event]"),
                     )
 
-                tview.create_bottom_bar(self.config, self.update_color_preset)
+                with self.colormap.provide_as(self.name):
+                    colormaps.HorizontalScalarBar(self.name, popup_location="top")
 
 
 class ViewManager(TrameComponent):
@@ -645,19 +399,7 @@ class ViewManager(TrameComponent):
         self._active_configs = {}
 
         rca.initialize(self.server)
-
-        self.state.luts_normal = [
-            {"name": k, "url": v["normal"], "safe": k in COLOR_BLIND_SAFE}
-            for k, v in COLORBAR_CACHE.items()
-        ]
-        self.state.luts_inverted = [
-            {"name": k, "url": v["inverted"], "safe": k in COLOR_BLIND_SAFE}
-            for k, v in COLORBAR_CACHE.items()
-        ]
-
-        # Sort lists
-        self.state.luts_normal.sort(key=lut_name)
-        self.state.luts_inverted.sort(key=lut_name)
+        colormaps.initialize(self.server)
 
     def refresh_ui(self, **_):
         for view in self._var2view.values():
@@ -791,7 +533,7 @@ class ViewManager(TrameComponent):
 
     def update_color_range(self):
         for view in self._active_views():
-            view.update_color_range()
+            view.colormap.update_color_range()
         self.render()
 
     def refresh_pipeline_inputs(self):

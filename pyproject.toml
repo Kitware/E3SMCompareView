@@ -21,16 +21,7 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
     "numpy<2.4",
-    "trame>=3.12",
-    "trame-rca[turbo]>=2.3.1",
-    "trame-vuetify>=3.1",
-    "pyproj>=3.6.1",
-    "netCDF4>=1.6.5",
-    "trame-dataclass >=2.0.2",
-    "trame-components",
-    "trame-tauri>=0.6.2",
-    "Pillow",
-    "e3sm-quickview>=2.7.6",
+    "e3sm-quickview>=2.7.7",
 ]
 
 [project.optional-dependencies]

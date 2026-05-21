@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import json
-import math
 import os
 import time
 from pathlib import Path
@@ -9,6 +8,7 @@ from pathlib import Path
 from e3sm_quickview import module as qv_module
 from e3sm_quickview.components import css, dialogs
 from e3sm_quickview.utils import cli, compute
+from e3sm_quickview.utils.colors import get_type_color
 from trame.app import TrameApp, asynchronous, file_upload
 from trame.decorators import change, controller, life_cycle, trigger
 from trame.ui.vuetify3 import VAppLayout
@@ -366,8 +366,6 @@ class EAMApp(TrameApp):
             for _, var in self.source.data_reader.varmeta.items()
         ]
 
-        from e3sm_quickview.utils.colors import get_type_color
-
         # Build dynamic type-color mapping.
         dim_types = sorted(
             set(
@@ -473,27 +471,32 @@ class EAMApp(TrameApp):
                     self.state.comparison_type,
                     self.state.selected_columns,
                 ):
-                    config = self.view_manager.get_view(view_spec, view_type).config
+                    view = self.view_manager.get_view(view_spec, view_type)
+                    config = view.config
+                    cmap = view.colormap
                     views_to_export.append(
                         {
                             "type": view_type,
                             "name": var_name,
                             "array_name": view_spec["array_name"],
                             "config": {
-                                # lut
-                                "preset": config.preset,
-                                "invert": config.invert,
-                                "use_log_scale": config.use_log_scale,
                                 # layout
                                 "order": config.order,
                                 "size": config.size,
                                 "offset": config.offset,
                                 "break_row": config.break_row,
-                                # color range
-                                "override_range": config.override_range,
-                                "color_range": config.color_range,
-                                "color_value_min": config.color_value_min,
-                                "color_value_max": config.color_value_max,
+                            },
+                            "colormap": {
+                                "preset": cmap.preset,
+                                "invert": cmap.invert,
+                                "color_blind": cmap.color_blind,
+                                "use_log_scale": cmap.use_log_scale,
+                                "discrete_log": cmap.discrete_log,
+                                "n_discrete_colors": cmap.n_discrete_colors,
+                                "override_range": cmap.override_range,
+                                "color_range": cmap.color_range,
+                                "color_value_min": cmap.color_value_min,
+                                "color_value_max": cmap.color_value_max,
                             },
                         }
                     )
@@ -560,11 +563,32 @@ class EAMApp(TrameApp):
         self.state.variables_loaded = True
 
         # Update view states
+        _COLORMAP_KEYS = {
+            "preset",
+            "invert",
+            "color_blind",
+            "use_log_scale",
+            "discrete_log",
+            "n_discrete_colors",
+            "override_range",
+            "color_range",
+            "color_value_min",
+            "color_value_max",
+        }
         for view_state in state_content["views"]:
             view_type = view_state["type"]
             array_name = view_state.get("array_name", view_state["name"])
-            config = self.view_manager.get_view(array_name, view_type).config
-            config.update(**view_state["config"])
+            view = self.view_manager.get_view(array_name, view_type)
+
+            # Extract state
+            cfg = dict(view_state.get("config", {}))  # need a copy as we pop things out
+            cmap_cfg = view_state.get("colormap", {})
+            if not cmap_cfg:  # Backward compatibility
+                cmap_cfg = {k: cfg.pop(k) for k in list(cfg) if k in _COLORMAP_KEYS}
+
+            # Apply state
+            view.config.update(**cfg)
+            view.colormap.update(**cmap_cfg)
 
         # Update layout
         self.state.aspect_ratio = state_content["layout"]["aspect-ratio"]
