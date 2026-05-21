@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v1.6.0 (2026-05-21)
+
+### Bug Fixes
+
+- **pan/zoom**: Use guarded methods for key binding
+  ([`a12ffd0`](https://github.com/Kitware/E3SMQuickCompare/commit/a12ffd07e3dc813acaf515c4d07fa999b96f4a27))
+
+- **tauri**: Collect colormaps
+  ([`2e39cab`](https://github.com/Kitware/E3SMQuickCompare/commit/2e39cab8fd0ad8d2c683032cd6ec9206b686289c))
+
+- **views**: Split view manager into panel and layout
+  ([`38f75ee`](https://github.com/Kitware/E3SMQuickCompare/commit/38f75ee467d75c57537a3323ac00206f7d9a792a))
+
+### Chores
+
+- Bump minimum quickview version
+  ([`980ef7c`](https://github.com/Kitware/E3SMQuickCompare/commit/980ef7cca5575e1597d41d753787c7ac6a52d5f4))
+
+### Features
+
+- **colormap**: Use external colormap
+  ([`2ac3852`](https://github.com/Kitware/E3SMQuickCompare/commit/2ac3852b40c27a0311fdf5c9e05db21bdab8c96f))
+
+
 ## v1.5.0 (2026-05-11)
 
 ### Bug Fixes
