@@ -197,12 +197,12 @@ class EAMApp(TrameApp):
                 SaveState="trigger('download_state_dialog')",
                 UploadState="utils.get('document').querySelector('#fileUpload').click()",
                 ToggleHelp="compact_drawer = !compact_drawer",
-                PanLeft=(self.view_manager.pan, "[1, 0]"),
-                PanRight=(self.view_manager.pan, "[-1, 0]"),
-                PanUp=(self.view_manager.pan, "[0, -1]"),
-                PanDown=(self.view_manager.pan, "[0, 1]"),
-                ZoomIn=(self.view_manager.zoom, "[0.83]"),
-                ZoomOut=(self.view_manager.zoom, "[1.2]"),
+                PanLeft=(self.view_manager.guarded_pan, "[1, 0]"),
+                PanRight=(self.view_manager.guarded_pan, "[-1, 0]"),
+                PanUp=(self.view_manager.guarded_pan, "[0, -1]"),
+                PanDown=(self.view_manager.guarded_pan, "[0, 1]"),
+                ZoomIn=(self.view_manager.guarded_zoom, "[0.83]"),
+                ZoomOut=(self.view_manager.guarded_zoom, "[1.2]"),
             ) as mt:
                 mt.bind(["z"], "ResetCamera")
                 mt.bind(["alt+0", "0"], "SizeAuto")
@@ -218,8 +218,8 @@ class EAMApp(TrameApp):
                 mt.bind("m", "ProjectionMollweide")
 
                 mt.bind("f", "FileOpen")
-                mt.bind("d", "SaveState")
-                mt.bind("u", "UploadState")
+                mt.bind("e", "SaveState")
+                mt.bind("i", "UploadState")
                 mt.bind("h", "ToggleHelp")
 
                 mt.bind("p", "ToolbarLayout")
