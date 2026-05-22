@@ -771,10 +771,8 @@ class EAMApp(TrameApp):
         if self.state.comparison_mode != "multi-sim" or not self.state.variables_loaded:
             return
 
-        camera = self.view_manager.get_active_camera()
         self.view_manager.reset_view_orders(self.selected_variables)
         self._rebuild_active_layout(update_color=True)
-        self.view_manager.sync_active_views_to_camera(camera)
 
     @change("comparison_mode")
     def _on_comparison_mode_change(self, comparison_mode, **_):
@@ -790,10 +788,8 @@ class EAMApp(TrameApp):
     def _on_selected_columns_change(self, **_):
         if self.state.comparison_mode != "two-sim" or not self.state.variables_loaded:
             return
-        camera = self.view_manager.get_active_camera()
         self.view_manager.reset_view_orders(self.selected_variables)
         self._rebuild_active_layout(update_color=True)
-        self.view_manager.sync_active_views_to_camera(camera)
 
     @change(
         "simulation_configs",
