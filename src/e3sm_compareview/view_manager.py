@@ -384,12 +384,50 @@ class ViewManager(TrameComponent):
 
     @controller.set("swap_variables")
     def swap_variable(self, variable_a, variable_b):
-        config_a = self._active_configs[variable_a]
-        config_b = self._active_configs[variable_b]
-        config_a.order, config_b.order = config_b.order, config_a.order
-        config_a.size, config_b.size = config_b.size, config_a.size
-        config_a.offset, config_b.offset = config_b.offset, config_a.offset
-        config_a.break_row, config_b.break_row = config_b.break_row, config_a.break_row
+        if not variable_a or not variable_b or variable_a == variable_b:
+            return
+
+        def swap_pair(array_name_a, array_name_b):
+            config_a = self._active_configs.get(array_name_a)
+            config_b = self._active_configs.get(array_name_b)
+            if config_a is None or config_b is None:
+                return
+            config_a.order, config_b.order = config_b.order, config_a.order
+            config_a.size, config_b.size = config_b.size, config_a.size
+            config_a.offset, config_b.offset = config_b.offset, config_a.offset
+            config_a.break_row, config_b.break_row = config_b.break_row, config_a.break_row
+
+        if not self.state.layout_grouped:
+            swap_pair(variable_a, variable_b)
+            return
+
+        slot_a = self._slot_index_for_array(variable_a)
+        slot_b = self._slot_index_for_array(variable_b)
+        if slot_a is None or slot_b is None or slot_a == slot_b:
+            swap_pair(variable_a, variable_b)
+            return
+
+        for _, var_names in self._last_vars.items():
+            for var_name in var_names:
+                view_specs = self.get_view_specs(var_name)
+                if slot_a >= len(view_specs) or slot_b >= len(view_specs):
+                    continue
+
+                swap_pair(
+                    view_specs[slot_a]["array_name"],
+                    view_specs[slot_b]["array_name"],
+                )
+
+    def _slot_index_for_array(self, array_name):
+        metadata = self.source.data_reader.get_array_metadata(array_name) or {}
+        base_variable = metadata.get("base_variable")
+        if not base_variable:
+            return None
+
+        for slot_index, view_spec in enumerate(self.get_view_specs(base_variable)):
+            if view_spec["array_name"] == array_name:
+                return slot_index
+        return None
 
     def apply_size(self, n_cols):
         if not self._last_vars:
@@ -452,11 +490,14 @@ class ViewManager(TrameComponent):
                                     classes="text-subtitle-2 font-weight-medium mb-1",
                                 )
                                 with v3.VRow(dense=True):
-                                    if self.state.comparison_mode == "multi-sim":
-                                        views_per_row = min(len(view_specs), 3)
-                                    else:
+                                    use_config_size = (
+                                        self.state.comparison_mode == "multi-sim"
+                                    )
+                                    if not use_config_size:
                                         views_per_row = max(1, len(view_specs))
-                                    group_cols = max(1, math.floor(12 / views_per_row))
+                                        group_cols = max(
+                                            1, math.floor(12 / views_per_row)
+                                        )
                                     group_names = [
                                         view_spec["array_name"]
                                         for view_spec in view_specs
@@ -485,8 +526,14 @@ class ViewManager(TrameComponent):
                                                     style=("{ order: config.order }",),
                                                 )
                                             with v3.VCol(
-                                                offset=("config.offset * config.size",),
-                                                cols=group_cols,
+                                                offset=(
+                                                    "config.size ? config.offset * config.size : 0",
+                                                )
+                                                if use_config_size
+                                                else ("config.offset * config.size",),
+                                                cols=("config.size",)
+                                                if use_config_size
+                                                else group_cols,
                                                 style=("`order: ${config.order};`",),
                                             ):
                                                 client.ServerTemplate(name=view.name)
