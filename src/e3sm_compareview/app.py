@@ -30,7 +30,6 @@ from e3sm_compareview.components import (
     doc,
     drawers,
     file_browser,
-    simulation_selection,
     toolbars,
 )
 from e3sm_compareview.components import (
@@ -256,7 +255,6 @@ class EAMApp(TrameApp):
                 with v3.VMain():
                     dialogs.FileOpen(self.file_browser)
                     dialogs.StateDownload()
-                    simulation_selection.SimulationSelection()
                     drawers.FieldSelection(load_variables=self.data_load_variables)
 
                     with v3.VContainer(classes="h-100 pa-0", fluid=True):
@@ -273,6 +271,7 @@ class EAMApp(TrameApp):
                                     pan=self.view_manager.pan,
                                     reset_camera=self.view_manager.reset_camera,
                                 )
+                                toolbars.SimulationControls()
                                 toolbars.ComparisonMode()
                                 toolbars.Cropping()
                                 toolbars.DataSelection()

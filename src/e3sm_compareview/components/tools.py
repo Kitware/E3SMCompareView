@@ -108,7 +108,13 @@ class Tools(v3.VNavigationDrawer):
                     select_strategy="independent",
                     v_model_selected=(
                         "active_tools",
-                        ["load-data", "select-slice-time", "comparison-controls"],
+                        [
+                            "load-data",
+                            "adjust-layout",
+                            "select-slice-time",
+                            "simulation-controls",
+                            "comparison-controls",
+                        ],
                     ),
                 ):
                     AppLogo()
@@ -118,15 +124,18 @@ class Tools(v3.VNavigationDrawer):
 
                     qv_tools.StateImportExport()
                     qv_tools.OpenFile()
-                    SimulationSelectionTool(
-                        click=(toggle_toolbar, "['select-simulations']")
-                    )
 
                     v3.VDivider(classes="my-1")
 
                     FieldSelectionTool(click=(toggle_toolbar, "['select-fields']"))
                     qv_tools.DataSelection()
                     qv_tools.Animation()
+                    qv_tools.ToggleButton(
+                        compact="compact_drawer",
+                        title="Simulation Controls",
+                        icon="mdi-database-cog-outline",
+                        value="simulation-controls",
+                    )
                     qv_tools.ToggleButton(
                         compact="compact_drawer",
                         title="Comparison mode",
