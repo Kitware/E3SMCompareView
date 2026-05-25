@@ -535,18 +535,25 @@ class ViewManager(TrameComponent):
                                         group_cols = max(
                                             1, math.floor(12 / views_per_row)
                                         )
-                                    group_names = [
-                                        view_spec["array_name"]
+                                    group_swap_items = [
+                                        {
+                                            "name": view_spec["array_name"],
+                                            "label": view_spec.get(
+                                                "label", view_spec["array_name"]
+                                            ),
+                                        }
                                         for view_spec in view_specs
                                     ]
                                     for view_spec in view_specs:
                                         view = self.get_view(view_spec, var_type)
                                         view.config.swap_group = sorted(
                                             [
-                                                name
-                                                for name in group_names
-                                                if name != view_spec["array_name"]
-                                            ]
+                                                item
+                                                for item in group_swap_items
+                                                if item["name"]
+                                                != view_spec["array_name"]
+                                            ],
+                                            key=lambda item: item["name"],
                                         )
                                         with view.config.provide_as("config"):
                                             v3.VCol(
@@ -575,12 +582,17 @@ class ViewManager(TrameComponent):
                                             ):
                                                 client.ServerTemplate(name=view.name)
             else:
-                all_names = []
+                all_swap_items = []
                 for var_name_list in variables.values():
                     for var_name in var_name_list:
-                        all_names.extend(
+                        all_swap_items.extend(
                             [
-                                view_spec["array_name"]
+                                {
+                                    "name": view_spec["array_name"],
+                                    "label": view_spec.get(
+                                        "label", view_spec["array_name"]
+                                    ),
+                                }
                                 for view_spec in self.get_view_specs(var_name)
                             ]
                         )
@@ -591,10 +603,11 @@ class ViewManager(TrameComponent):
                                 view = self.get_view(view_spec, var_type)
                                 view.config.swap_group = sorted(
                                     [
-                                        array_name
-                                        for array_name in all_names
-                                        if array_name != view_spec["array_name"]
-                                    ]
+                                        item
+                                        for item in all_swap_items
+                                        if item["name"] != view_spec["array_name"]
+                                    ],
+                                    key=lambda item: item["name"],
                                 )
                                 with view.config.provide_as("config"):
                                     v3.VCol(

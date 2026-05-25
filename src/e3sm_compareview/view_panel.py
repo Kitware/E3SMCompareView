@@ -22,7 +22,7 @@ class ViewConfiguration(dataclass.StateDataModel):
     size: int = dataclass.Sync(int, 4)
     offset: int = dataclass.Sync(int, 0)
     break_row: bool = dataclass.Sync(bool, False)
-    swap_group: list[str] = dataclass.Sync(list[str], list)
+    swap_group: list[dict[str, str]] = dataclass.Sync(list[dict[str, str]], list)
 
 
 class VariableView(TrameComponent):
@@ -251,12 +251,12 @@ class VariableView(TrameComponent):
                                 ):
                                     with self.config.provide_as("config"):
                                         v3.VListItem(
-                                            subtitle=("name",),
-                                            v_for="name, idx in config.swap_group",
-                                            key="name",
+                                            title=("swap.label || swap.name",),
+                                            v_for="swap, idx in config.swap_group",
+                                            key="swap.name",
                                             click=(
                                                 self.ctrl.swap_variables,
-                                                "[config.variable, name]",
+                                                "[config.variable, swap.name]",
                                             ),
                                         )
 
