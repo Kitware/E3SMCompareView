@@ -5,4 +5,3 @@ dependencies:
   - python=3.13
   - pip
   - paraview>=6
-  - numpy<2.4
