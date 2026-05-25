@@ -267,7 +267,7 @@ class ViewManager(TrameComponent):
         if not variables:
             return
 
-        for _, var_names in variables.items():
+        for var_names in variables.values():
             for var_name in var_names:
                 for view_spec in self.get_view_specs(var_name):
                     view = self._var2view.get(view_spec["array_name"])
@@ -395,19 +395,67 @@ class ViewManager(TrameComponent):
             config_a.order, config_b.order = config_b.order, config_a.order
             config_a.size, config_b.size = config_b.size, config_a.size
             config_a.offset, config_b.offset = config_b.offset, config_a.offset
-            config_a.break_row, config_b.break_row = config_b.break_row, config_a.break_row
+            config_a.break_row, config_b.break_row = (
+                config_b.break_row,
+                config_a.break_row,
+            )
 
-        if not self.state.layout_grouped:
+        metadata_a = self.source.data_reader.get_array_metadata(variable_a) or {}
+        metadata_b = self.source.data_reader.get_array_metadata(variable_b) or {}
+        grouped_layout = self.state.layout_grouped
+        if grouped_layout and self.state.comparison_mode == "multi-sim":
+            path_a = metadata_a.get("path")
+            path_b = metadata_b.get("path")
+
+            if path_a and path_b and path_a != path_b:
+                simulation_configs = list(self.state.simulation_configs or [])
+                index_a = None
+                index_b = None
+                for index, entry in enumerate(simulation_configs):
+                    path = entry.get("path")
+                    if path == path_a:
+                        index_a = index
+                    if path == path_b:
+                        index_b = index
+
+                if index_a is not None and index_b is not None and index_a != index_b:
+                    simulation_configs[index_a], simulation_configs[index_b] = (
+                        simulation_configs[index_b],
+                        simulation_configs[index_a],
+                    )
+                    self.state.simulation_configs = simulation_configs
+                    return
+
+        if not grouped_layout:
             swap_pair(variable_a, variable_b)
             return
 
-        slot_a = self._slot_index_for_array(variable_a)
-        slot_b = self._slot_index_for_array(variable_b)
+        base_variable_a = metadata_a.get("base_variable")
+        base_variable_b = metadata_b.get("base_variable")
+        slot_a = None
+        slot_b = None
+
+        if base_variable_a:
+            for slot_index, view_spec in enumerate(
+                self.get_view_specs(base_variable_a)
+            ):
+                if view_spec["array_name"] == variable_a:
+                    slot_a = slot_index
+                    break
+
+        if base_variable_b:
+            for slot_index, view_spec in enumerate(
+                self.get_view_specs(base_variable_b)
+            ):
+                if view_spec["array_name"] == variable_b:
+                    slot_b = slot_index
+                    break
+
         if slot_a is None or slot_b is None or slot_a == slot_b:
             swap_pair(variable_a, variable_b)
             return
 
-        for _, var_names in self._last_vars.items():
+        for var_names in self._last_vars.values():
             for var_name in var_names:
                 view_specs = self.get_view_specs(var_name)
                 if slot_a >= len(view_specs) or slot_b >= len(view_specs):
@@ -417,17 +465,6 @@ class ViewManager(TrameComponent):
                     view_specs[slot_a]["array_name"],
                     view_specs[slot_b]["array_name"],
                 )
-
-    def _slot_index_for_array(self, array_name):
-        metadata = self.source.data_reader.get_array_metadata(array_name) or {}
-        base_variable = metadata.get("base_variable")
-        if not base_variable:
-            return None
-
-        for slot_index, view_spec in enumerate(self.get_view_specs(base_variable)):
-            if view_spec["array_name"] == array_name:
-                return slot_index
-        return None
 
     def apply_size(self, n_cols):
         if not self._last_vars:
