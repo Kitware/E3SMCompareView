@@ -73,6 +73,9 @@ class VariableView(TrameComponent):
         )
         self.colormap.watch(["mapper_change"], lambda *_: self.render())
 
+        if self.role in ("diff", "comp1", "comp2"):
+            self.colormap.diverging = True
+
         self._connect_pipeline_input()
 
         # Add shared annotation actors
