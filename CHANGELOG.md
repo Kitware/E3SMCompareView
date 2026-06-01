@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v1.7.0 (2026-06-01)
+
+### Bug Fixes
+
+- Make view swap use view label as name
+  ([`7cff126`](https://github.com/Kitware/E3SMQuickCompare/commit/7cff12679f627e45462b87aac3396e9cf72e70b6))
+
+- Remove numpy<2.4 constraint
+  ([`05ebb53`](https://github.com/Kitware/E3SMQuickCompare/commit/05ebb534d6540ee7a36240c8c17cceb38337bde3))
+
+- Swapping variable views changes simulation order
+  ([`9107c3f`](https://github.com/Kitware/E3SMQuickCompare/commit/9107c3fbd0466197494ea2b2d6127de6634d5384))
+
+- **view**: Swap variables across groups
+  ([`b72c872`](https://github.com/Kitware/E3SMQuickCompare/commit/b72c87230c3545092d99b586628a730e9e2d714c))
+
+- **views**: Clean up removed ViewManager method
+  ([`ffeada9`](https://github.com/Kitware/E3SMQuickCompare/commit/ffeada96f9d745752cfb20b1673c63c667ab2c75))
+
+### Features
+
+- Add Simulation Controls toolbar
+  ([`6fa4247`](https://github.com/Kitware/E3SMQuickCompare/commit/6fa4247f8c50962a45ad5586f3e7c508235ff289))
+
+
 ## v1.6.0 (2026-05-21)
 
 ### Bug Fixes
