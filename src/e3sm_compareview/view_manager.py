@@ -493,12 +493,16 @@ class ViewManager(TrameComponent):
     def build_auto_layout(self, variables=None):
         if variables is None:
             variables = self._last_vars
+        if not variables:
+            self.state.animation_export_items = []
+            return
 
         self._last_vars = variables
         self.compute_layout()
 
         # Create UI based on the selected variables.
         self.state.swap_groups = {}
+        export_items = []
         # Build a lookup from variable type to the matching group border color.
         type_to_color = {vt["name"]: vt["color"] for vt in self.state.variable_types}
         with DivLayout(self.server, template_name="auto_layout") as self.ui:
@@ -546,6 +550,14 @@ class ViewManager(TrameComponent):
                                     ]
                                     for view_spec in view_specs:
                                         view = self.get_view(view_spec, var_type)
+                                        export_items.append(
+                                            {
+                                                "title": view_spec.get(
+                                                    "label", view_spec["array_name"]
+                                                ),
+                                                "value": view_spec["array_name"],
+                                            }
+                                        )
                                         view.config.swap_group = sorted(
                                             [
                                                 item
@@ -601,6 +613,14 @@ class ViewManager(TrameComponent):
                         for name in var_names:
                             for view_spec in self.get_view_specs(name):
                                 view = self.get_view(view_spec, var_type)
+                                export_items.append(
+                                    {
+                                        "title": view_spec.get(
+                                            "label", view_spec["array_name"]
+                                        ),
+                                        "value": view_spec["array_name"],
+                                    }
+                                )
                                 view.config.swap_group = sorted(
                                     [
                                         item
@@ -632,6 +652,8 @@ class ViewManager(TrameComponent):
                                         style=("`order: ${config.order};`",),
                                     ):
                                         client.ServerTemplate(name=view.name)
+
+        self.state.animation_export_items = export_items
 
         # Assign any missing order.
         self._active_configs = {}

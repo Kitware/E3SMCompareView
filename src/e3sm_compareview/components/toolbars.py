@@ -2,7 +2,7 @@ import asyncio
 
 from trame.app import asynchronous
 from trame.decorators import change
-from trame.widgets import client, html
+from trame.widgets import html
 from trame.widgets import vuetify3 as v3
 
 from e3sm_compareview.comparison import (
@@ -11,6 +11,7 @@ from e3sm_compareview.comparison import (
     MULTI_SIM_COMPARISON_LABELS,
     TWO_SIM_COLUMN_LABELS,
 )
+from e3sm_quickview.components.toolbars import DataSelection as DataSelection
 from e3sm_quickview.components.toolbars import Layout as Layout
 from e3sm_quickview.utils import js
 
@@ -569,112 +570,6 @@ simulation_configs = simulation_configs.map((sim) =>
         self.state.control_simulation_file = control_path
 
 
-class DataSelection(html.Div):
-    def __init__(self):
-        style = to_kwargs("select-slice-time")
-        # Use style instead of d-flex class to avoid !important override of v-show
-        # Add background color to match VToolbar appearance
-        style["style"] = (
-            "display: flex; align-items: center; background: rgb(var(--v-theme-surface));"
-        )
-        super().__init__(**style)
-
-        with self:
-            with v3.VTooltip(
-                text=(
-                    "slice_slider_edit ? 'Toggle to text edit' : 'Toggle to slider edit'",
-                ),
-            ):
-                with v3.Template(v_slot_activator="{ props }"):
-                    v3.VIcon(
-                        "mdi-tune-variant",
-                        v_bind="props",
-                        classes="ml-3 mr-2 opacity-50",
-                        click="slice_slider_edit = !slice_slider_edit",
-                    )
-
-            with v3.VRow(
-                classes="ma-0 pr-2 flex-wrap flex-grow-1",
-                dense=True,
-                v_if=("slice_slider_edit", True),
-            ):
-                with v3.VCol(
-                    cols=4,
-                    v_for="(track, idx) in available_animation_tracks",
-                    key="idx",
-                    classes="pa-2",
-                ):
-                    with client.Getter(name=("track",), value_name="t_values"):
-                        with client.Getter(
-                            name=("track + '_idx'",), value_name="t_idx"
-                        ):
-                            with v3.VRow(classes="ma-0 align-center", dense=True):
-                                v3.VLabel(
-                                    "{{track}}",
-                                    classes="text-subtitle-2",
-                                )
-                                v3.VSpacer()
-                                v3.VLabel(
-                                    "{{ dim_units[track] ? parseFloat(t_values[t_idx]).toFixed(2) + ' ' + dim_units[track] : 'Index value: ' + t_idx }} (k={{ t_idx }})",
-                                    classes="text-body-2",
-                                )
-                            v3.VSlider(
-                                model_value=("t_idx",),
-                                update_modelValue=(
-                                    self.on_update_slider,
-                                    "[track, $event]",
-                                ),
-                                min=0,
-                                max=("t_values.length - 1",),
-                                step=1,
-                                density="compact",
-                                hide_details=True,
-                            )
-            with v3.VRow(
-                classes="ma-0 pl-6 pr-2 align-center ga-4",
-                v_else=True,
-            ):
-                with v3.VCol(
-                    v_for="(track, idx) in available_animation_tracks",
-                    key="idx",
-                ):
-                    with client.Getter(name=("track",), value_name="t_values"):
-                        with client.Getter(
-                            name=("track + '_idx'",), value_name="t_idx"
-                        ):
-                            with v3.VRow(classes="ma-0 align-center", dense=True):
-                                v3.VNumberInput(
-                                    model_value=("Number(t_idx)",),
-                                    update_modelValue=(
-                                        self.on_update_slider,
-                                        "[track, Number($event)]",
-                                    ),
-                                    key=("track + '_' + t_idx",),
-                                    min=[0],
-                                    max=["t_values ? t_values.length - 1 : 0"],
-                                    step=[1],
-                                    hide_details=True,
-                                    density="comfortable",
-                                    variant="plain",
-                                    flat=True,
-                                    control_variant="stacked",
-                                    style="max-width: 100px;",
-                                    reverse=True,
-                                )
-                                v3.VLabel(
-                                    "{{track}}",
-                                    classes="text-subtitle-2 ml-2 mt-1",
-                                )
-                                v3.VLabel(
-                                    "{{ dim_units[track] ? parseFloat(t_values[Number(t_idx)]).toFixed(2) + ' ' + dim_units[track] : 'Index value: ' + t_idx }}",
-                                    classes="text-body-2 text-no-wrap ml-2 mt-1",
-                                )
-
-    def on_update_slider(self, dimension, index, *_, **__):
-        with self.state:
-            self.state[f"{dimension}_idx"] = int(index)
-
-
 class Animation(v3.VToolbar):
     def __init__(self):
         super().__init__(**to_kwargs("animation-controls"))
@@ -706,24 +601,28 @@ class Animation(v3.VToolbar):
                 )
                 v3.VDivider(vertical=True, classes="mx-2")
                 v3.VIconBtn(
+                    v_tooltip_bottom="'First step'",
                     icon="mdi-page-first",
                     flat=True,
                     disabled=("animation_step === 0",),
                     click="animation_step = 0",
                 )
                 v3.VIconBtn(
+                    v_tooltip_bottom="'Previous step'",
                     icon="mdi-chevron-left",
                     flat=True,
                     disabled=("animation_step === 0",),
                     click="animation_step = Math.max(0, animation_step - 1)",
                 )
                 v3.VIconBtn(
+                    v_tooltip_bottom="'Next step'",
                     icon="mdi-chevron-right",
                     flat=True,
                     disabled=("animation_step === animation_step_max",),
                     click="animation_step = Math.min(animation_step_max, animation_step + 1)",
                 )
                 v3.VIconBtn(
+                    v_tooltip_bottom="'Last step'",
                     icon="mdi-page-last",
                     disabled=("animation_step === animation_step_max",),
                     flat=True,
@@ -731,10 +630,78 @@ class Animation(v3.VToolbar):
                 )
                 v3.VDivider(vertical=True, classes="mx-2")
                 v3.VIconBtn(
-                    icon=("animation_play ? 'mdi-stop' : 'mdi-play'",),
+                    v_tooltip_bottom="'Play reverse'",
+                    icon=(
+                        "animation_play && animation_direction === 'reverse' ? 'mdi-stop' : 'mdi-play'",
+                    ),
                     flat=True,
-                    click="animation_play = !animation_play",
+                    click="if (animation_play && animation_direction === 'reverse') { animation_play = false } else { animation_direction = 'reverse'; animation_play = true }",
+                    disabled=("animation_play && animation_direction === 'forward'",),
+                    style="transform: scaleX(-1);",
                 )
+                v3.VIconBtn(
+                    v_tooltip_bottom="'Play forward'",
+                    icon=(
+                        "animation_play && animation_direction === 'forward' ? 'mdi-stop' : 'mdi-play'",
+                    ),
+                    flat=True,
+                    click="if (animation_play && animation_direction === 'forward') { animation_play = false } else { animation_direction = 'forward'; animation_play = true }",
+                    disabled=("animation_play && animation_direction === 'reverse'",),
+                )
+                v3.VDivider(vertical=True, classes="mx-2")
+
+                with v3.VIconBtn(
+                    classes="position-relative",
+                    flat=True,
+                    v_if=("animation_export", False),
+                    click="animation_export = false",
+                ):
+                    v3.VIcon("mdi-download-multiple-outline")
+                    v3.VProgressCircular(
+                        color="error",
+                        bg_color="white",
+                        width=2,
+                        size=28,
+                        indeterminate=True,
+                        classes="position-absolute",
+                    )
+                with v3.VMenu(
+                    v_else=True,
+                    close_on_content_click=False,
+                    v_model=("show_animation_export_menu", False),
+                ):
+                    with v3.Template(v_slot_activator="{ props }"):
+                        v3.VIconBtn(
+                            v_bind="props",
+                            v_tooltip_bottom="'Export animation (ZIP)'",
+                            icon="mdi-download-multiple-outline",
+                            flat=True,
+                            loading=("animation_export", False),
+                            disabled=(
+                                "capture_recording || !animation_track || animation_play || animation_export",
+                            ),
+                        )
+                    with v3.VList(
+                        density="compact",
+                        v_model_activated=("animation_export_fields", []),
+                        activatable=True,
+                        active_strategy="independent",
+                    ):
+                        v3.VListItem(title="Viewport", value=("false",))
+                        v3.VDivider()
+                        v3.VListItem(
+                            v_for="item in animation_export_items",
+                            key="item.value",
+                            title=("item.title",),
+                            value=("item.value",),
+                        )
+                        v3.VDivider()
+                        v3.VListItem(
+                            active=False,
+                            title="Export animation",
+                            value=("null",),
+                            click="utils.quickview.captureAnimation(animation_export_fields)",
+                        )
 
     @change("animation_track")
     def _on_animation_track_change(self, animation_track, **_):
@@ -765,9 +732,21 @@ class Animation(v3.VToolbar):
         with self.state as s:
             while s.animation_play:
                 await asyncio.sleep(0.1)
-                if s.animation_step < s.animation_step_max:
-                    with s:
-                        s.animation_step += 1
-                    await self.server.network_completion
+                if s.animation_direction == "reverse":
+                    if s.animation_step > 0:
+                        with s:
+                            s.animation_step -= 1
+                        await self.server.network_completion
+                    else:
+                        with s:
+                            s.animation_step = s.animation_step_max
+                        await self.server.network_completion
                 else:
-                    s.animation_play = False
+                    if s.animation_step < s.animation_step_max:
+                        with s:
+                            s.animation_step += 1
+                        await self.server.network_completion
+                    else:
+                        with s:
+                            s.animation_step = 0
+                        await self.server.network_completion

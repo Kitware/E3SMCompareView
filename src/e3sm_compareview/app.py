@@ -61,6 +61,12 @@ class EAMApp(TrameApp):
                 "trame__favicon": ASSETS.icon,
                 "is_tauri": False,
                 "animation_play": False,
+                "animation_direction": "forward",
+                "animation_export": False,
+                "animation_export_fields": [],
+                "animation_export_items": [],
+                "capture_recording": False,
+                "show_animation_export_menu": False,
                 # All available variables
                 "variables_listing": [],
                 # Selected variables to load
@@ -283,10 +289,13 @@ class EAMApp(TrameApp):
                                 encoder="turbo-jpeg",
                                 ctx_name="view",
                             ):
-                                client.ServerTemplate(
-                                    name=("active_layout", "auto_layout"),
+                                with html.Div(
+                                    classes="all-variables",
                                     v_if="variables_selected.length",
-                                )
+                                ):
+                                    client.ServerTemplate(
+                                        name=("active_layout", "auto_layout"),
+                                    )
 
                             # Show documentation when no variable selected
                             with html.Div(v_if="!variables_selected.length"):
@@ -605,6 +614,9 @@ class EAMApp(TrameApp):
         # Reset state
         self.state.variables_selected = []
         self.state.variables_loaded = False
+        self.state.animation_track = None
+        self.state.available_animation_tracks = []
+        self.state.animation_export_items = []
         self.state.midpoint_idx = 0
         self.state.midpoints = []
         self.state.interface_idx = 0
@@ -824,6 +836,7 @@ class EAMApp(TrameApp):
             ):
                 return
             self.state.variables_loaded = False
+            self.state.animation_export_items = []
             return
 
         if (

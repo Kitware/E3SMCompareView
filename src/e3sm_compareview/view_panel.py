@@ -234,6 +234,7 @@ class VariableView(TrameComponent):
                     "active_layout !== 'auto_layout' ? `height: calc(100% - ${toolbar_size?.size?.height || 0}px;` : 'overflow-hidden'",
                 ),
                 tile=("active_layout !== 'auto_layout'",),
+                raw_attrs=[f'data-field-name="{self.array_name}"'],
             ):
                 with v3.VRow(
                     dense=True,
