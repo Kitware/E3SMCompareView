@@ -9,8 +9,20 @@ COMPARISON_TYPE_LABELS = {
     "comp1": "Rel Diff (w.r.t. ctrl)",
     "comp2": "Rel Diff (w.r.t. mean)",
 }
+MULTI_SIM_COMPARISON_LABELS = {
+    **COMPARISON_TYPE_LABELS,
+    "source": "Value",
+}
+TWO_SIM_COLUMN_LABELS = {
+    "source": COMPARISON_TYPE_LABELS["source"],
+    "ctrl": "Ctrl",
+    "test": "Test",
+    "diff": COMPARISON_TYPE_LABELS["diff"],
+    "comp1": COMPARISON_TYPE_LABELS["comp1"],
+    "comp2": COMPARISON_TYPE_LABELS["comp2"],
+}
 COMPARISON_TYPE_TITLE_SUFFIXES = {
-    "source": "source",
+    "source": "value",
     "diff": "diff",
     "comp1": "rel diff w.r.t. ctrl",
     "comp2": "rel diff w.r.t. mean",

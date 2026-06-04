@@ -18,6 +18,7 @@ from vtkmodules.vtkRenderingCore import vtkActor, vtkPolyDataMapper
 
 from e3sm_compareview.comparison import (
     COMPARISON_TYPES,
+    TWO_SIM_COLUMN_LABELS,
     COMPARISON_TYPE_TITLE_SUFFIXES,
 )
 
@@ -407,7 +408,7 @@ if area_np is not None:
                 "base_variable": var_name,
                 "role": "control",
                 "metric": "raw",
-                "label": f"{control['label']} (control)",
+                "label": f"{control['label']} (ctrl)",
                 "path": control["path"],
                 "index": 0,
                 "source_index": control.get("source_index", 0),
@@ -418,7 +419,7 @@ if area_np is not None:
                 "ctrl": {
                     **control_metadata,
                     "comparison_mode": "two-sim",
-                    "label": f"{var_name}_ctrl",
+                    "label": TWO_SIM_COLUMN_LABELS["ctrl"],
                 }
             }
             for comparison_type in COMPARISON_TYPES:
@@ -466,7 +467,7 @@ if area_np is not None:
                     "base_variable": var_name,
                     "role": "test",
                     "metric": "raw",
-                    "label": f"{var_name}_test",
+                    "label": TWO_SIM_COLUMN_LABELS["test"],
                     "path": two_sim_target["path"],
                     "index": 1,
                     "source_index": two_sim_target.get("source_index", 1),
@@ -485,7 +486,7 @@ if area_np is not None:
                         "metric": comparison_type,
                         "comparison_mode": "two-sim",
                         "comparison_type": comparison_type,
-                        "label": f"{var_name}_{comparison_type}",
+                        "label": TWO_SIM_COLUMN_LABELS[comparison_type],
                         "path": two_sim_target["path"],
                         "index": 1,
                         "source_index": two_sim_target.get("source_index", 1),
