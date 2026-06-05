@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v1.7.1 (2026-06-05)
+
+### Bug Fixes
+
+- Make diff comparisons use difference colormaps
+  ([`fe8986e`](https://github.com/Kitware/E3SMQuickCompare/commit/fe8986eae99b6a67adab7d9b2272e6346e568f59))
+
+- UI/wording fixes
+  ([`320afae`](https://github.com/Kitware/E3SMQuickCompare/commit/320afaed472ae8de14ca0171faba761d56023de9))
+
+### Continuous Integration
+
+- Bump python version to 3.11
+  ([`d759adb`](https://github.com/Kitware/E3SMQuickCompare/commit/d759adb1745563b9d512de79d1001fbbaf0f0729))
+
+### Refactoring
+
+- Use slice selection toolbar from QuickView
+  ([`bf60b70`](https://github.com/Kitware/E3SMQuickCompare/commit/bf60b700cc290ee30cf635cce57bf995a65765c4))
+
+
 ## v1.7.0 (2026-06-01)
 
 ### Bug Fixes
