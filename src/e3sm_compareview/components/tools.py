@@ -110,6 +110,7 @@ class Tools(v3.VNavigationDrawer):
                         "active_tools",
                         [
                             "load-data",
+                            "select-fields",
                             "adjust-layout",
                             "select-slice-time",
                             "simulation-controls",
