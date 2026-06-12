@@ -59,6 +59,7 @@ class EAMApp(TrameApp):
             {
                 "trame__title": "QuickCompare",
                 "trame__favicon": ASSETS.icon,
+                "download_name": "quickcompare-state.json",
                 "is_tauri": False,
                 "animation_play": False,
                 "animation_direction": "forward",
