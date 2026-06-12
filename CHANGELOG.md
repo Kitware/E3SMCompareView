@@ -2,6 +2,34 @@
 
 <!-- version list -->
 
+## v1.8.0 (2026-06-12)
+
+### Bug Fixes
+
+- Allow scrolling while hovering over view panels
+  ([`d8e97f5`](https://github.com/Kitware/E3SMQuickCompare/commit/d8e97f5c155ae6f39c456b1d48e9efc21b4ef26d))
+
+- Fix panels being mislabeled when loading state file
+  ([`0a22819`](https://github.com/Kitware/E3SMQuickCompare/commit/0a22819a6f91d50c82b47c99cba672d888766a2d))
+
+- Fix state download file name
+  ([`1a8853c`](https://github.com/Kitware/E3SMQuickCompare/commit/1a8853c314b62b7ef8e7c5d02119f9914ea60245))
+
+- Fix view avg computation
+  ([`9e87e18`](https://github.com/Kitware/E3SMQuickCompare/commit/9e87e18c70935ce05567fb10bec989d4ca0e2ace))
+
+- Make Variable Selection open by default
+  ([`02a26d3`](https://github.com/Kitware/E3SMQuickCompare/commit/02a26d34f6568e386f7dd7f4b3ad0af5824fff3f))
+
+- Remove viewport control button
+  ([`ad398d3`](https://github.com/Kitware/E3SMQuickCompare/commit/ad398d3728e8b3a90d5850d3729c7fd4fbe6d4c5))
+
+### Features
+
+- Swap variable groups to reorder
+  ([`97b07c6`](https://github.com/Kitware/E3SMQuickCompare/commit/97b07c66a52172cf782804a2198b6ed8efe95bcd))
+
+
 ## v1.7.1 (2026-06-05)
 
 ### Bug Fixes
