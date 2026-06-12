@@ -1,7 +1,6 @@
 import math
 
 import vtkmodules.vtkRenderingOpenGL2  # noqa: F401
-from e3sm_quickview.components.view import create_size_menu
 from trame.app import TrameComponent, dataclass
 from trame.dataclasses.colormaps import ColormapConfig
 from trame.ui.html import DivLayout
@@ -241,11 +240,10 @@ class VariableView(TrameComponent):
                     classes="ma-0 pa-0 bg-white text-black d-flex align-center border-b-thin",
                     style="flex-wrap: nowrap;",
                 ):
-                    create_size_menu(self.name, self.config)
                     with self.config.provide_as("config"):
                         with html.Div(
                             "{{ config.label }}",
-                            classes="text-subtitle-2 pr-2 text-truncate",
+                            classes="text-subtitle-2 px-2 text-truncate",
                             style="user-select: none; min-width: 0;",
                             title=("config.label",),
                         ):
