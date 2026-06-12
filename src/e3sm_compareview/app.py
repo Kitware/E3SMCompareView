@@ -318,11 +318,6 @@ class EAMApp(TrameApp):
         return dict(vars_per_type)
 
     @property
-    def selected_variable_names(self):
-        # Remove var type (first char)
-        return [var for var in self.state.variables_selected]
-
-    @property
     def active_simulation_configs(self):
         return active_simulation_configs(
             self.state.simulation_configs,
@@ -398,6 +393,19 @@ class EAMApp(TrameApp):
             self.view_manager.render()
         return True
 
+    def _update_field_avgs(self):
+        vtk_data = self.source.data_reader.get_output_dataset()
+        if vtk_data is None:
+            self.state.fields_avgs = {}
+            return
+
+        array_names = list(self.source.data_reader.array_metadata)
+        if not array_names:
+            self.state.fields_avgs = {}
+            return
+
+        self.state.fields_avgs = compute.extract_avgs(vtk_data, array_names)
+
     def _refresh_source_simulations(self):
         if not self.source.data_reader.conn_file:
             return
@@ -415,6 +423,7 @@ class EAMApp(TrameApp):
             self.state.variables_selected = [
                 var for var in self.state.variables_selected if var in valid_variables
             ]
+            self._update_field_avgs()
 
     # -------------------------------------------------------------------------
     # Methods connected to UI
@@ -756,6 +765,7 @@ class EAMApp(TrameApp):
                 variables=flattened_vars,
                 force_reload=True,
             )
+            self._update_field_avgs()
 
             if self.state.comparison_mode == "two-sim":
                 self.view_manager.reset_view_orders(vars_to_show)
@@ -870,16 +880,7 @@ class EAMApp(TrameApp):
 
         self.view_manager.update_color_range()
         self.view_manager.render()
-
-        # Update avg computation
-        # Get area variable to calculate weighted average
-        vtk_data = self.source.data_reader.get_output_dataset()
-        if vtk_data is not None:
-            self.state.fields_avgs = compute.extract_avgs(
-                vtk_data, self.selected_variable_names
-            )
-        else:
-            self.state.fields_avgs = {}
+        self._update_field_avgs()
 
     @change(
         "crop_longitude",
@@ -902,16 +903,7 @@ class EAMApp(TrameApp):
 
         self.view_manager.update_color_range()
         self.view_manager.render()
-
-        # Update avg computation
-        # Get area variable to calculate weighted average
-        vtk_data = self.source.data_reader.get_output_dataset()
-        if vtk_data is not None:
-            self.state.fields_avgs = compute.extract_avgs(
-                vtk_data, self.selected_variable_names
-            )
-        else:
-            self.state.fields_avgs = {}
+        self._update_field_avgs()
 
     def toggle_toolbar(self, toolbar_name=None):
         if toolbar_name is None:
