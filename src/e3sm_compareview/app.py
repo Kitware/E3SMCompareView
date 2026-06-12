@@ -194,7 +194,6 @@ class EAMApp(TrameApp):
                 ToolbarAnimation=(self.toggle_toolbar, "['animation-controls']"),
                 ToggleVariableSelection=(self.toggle_toolbar, "['select-fields']"),
                 RemoveAllToolbars=(self.toggle_toolbar),
-                ToggleGroups="layout_grouped = !layout_grouped",
                 ProjectionEquidistant="projection = ['Cyl. Equidistant']",
                 ProjectionRobinson="projection = ['Robinson']",
                 ProjectionMollweide="projection = ['Mollweide']",
@@ -232,8 +231,6 @@ class EAMApp(TrameApp):
                 mt.bind("l", "ToolbarCrop")
                 mt.bind("s", "ToolbarSelect")
                 mt.bind("a", "ToolbarAnimation")
-                mt.bind("g", "ToggleGroups")
-
                 mt.bind("v", "ToggleVariableSelection")
 
                 mt.bind("space", "ToggleViewLock", stop_propagation=True)
@@ -462,7 +459,6 @@ class EAMApp(TrameApp):
         state_content["variables-selection"] = self.state.variables_selected
         state_content["layout"] = {
             "aspect-ratio": self.state.aspect_ratio,
-            "grouped": self.state.layout_grouped,
             "active": self.state.active_layout,
             "tools": self.state.active_tools,
             "help": not self.state.compact_drawer,
@@ -610,7 +606,6 @@ class EAMApp(TrameApp):
 
         # Update layout
         self.state.aspect_ratio = state_content["layout"]["aspect-ratio"]
-        self.state.layout_grouped = state_content["layout"]["grouped"]
         self.state.active_layout = state_content["layout"]["active"]
         self.state.active_tools = state_content["layout"]["tools"]
         self.state.compact_drawer = not state_content["layout"]["help"]
@@ -783,10 +778,6 @@ class EAMApp(TrameApp):
             with self.state:
                 self.state.loading = False
                 self.state.loading_time = t1 - t0
-
-    @change("layout_grouped")
-    def _on_layout_change(self, **_):
-        self._rebuild_active_layout()
 
     @change("comparison_type")
     def _on_comparison_type_change(self, **_):

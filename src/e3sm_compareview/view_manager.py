@@ -90,6 +90,7 @@ class ViewManager(TrameComponent):
         self._var2view = {}
         self._last_vars = {}
         self._active_configs = {}
+        self._group_orders = {}
 
         rca.initialize(self.server)
         colormaps.initialize(self.server)
@@ -402,8 +403,7 @@ class ViewManager(TrameComponent):
 
         metadata_a = self.source.data_reader.get_array_metadata(variable_a) or {}
         metadata_b = self.source.data_reader.get_array_metadata(variable_b) or {}
-        grouped_layout = self.state.layout_grouped
-        if grouped_layout and self.state.comparison_mode == "multi-sim":
+        if self.state.comparison_mode == "multi-sim":
             path_a = metadata_a.get("path")
             path_b = metadata_b.get("path")
 
@@ -425,10 +425,6 @@ class ViewManager(TrameComponent):
                     )
                     self.state.simulation_configs = simulation_configs
                     return
-
-        if not grouped_layout:
-            swap_pair(variable_a, variable_b)
-            return
 
         base_variable_a = metadata_a.get("base_variable")
         base_variable_b = metadata_b.get("base_variable")
@@ -466,25 +462,37 @@ class ViewManager(TrameComponent):
                     view_specs[slot_b]["array_name"],
                 )
 
+    @controller.set("swap_variable_groups")
+    def swap_variable_groups(self, variable_a, variable_b):
+        if not variable_a or not variable_b or variable_a == variable_b:
+            return
+
+        if variable_a not in self._group_orders or variable_b not in self._group_orders:
+            return
+
+        self._group_orders[variable_a], self._group_orders[variable_b] = (
+            self._group_orders[variable_b],
+            self._group_orders[variable_a],
+        )
+
+        if self._last_vars:
+            self.build_auto_layout(self._last_vars)
+            self.render()
+
     def apply_size(self, n_cols):
         if not self._last_vars:
             return
 
         if n_cols == 0:
             # Auto size views based on the number of comparison panels being shown.
-            if self.state.layout_grouped:
-                for var_type, var_names in self._last_vars.items():
-                    for var_name in var_names:
-                        view_specs = self.get_view_specs(var_name)
-                        if not view_specs:
-                            continue
-                        size = auto_size_to_col(len(view_specs))
-                        for view_spec in view_specs:
-                            self.get_view(view_spec, var_type).config.size = size
-            else:
-                size = auto_size_to_col(len(self._active_configs))
-                for config in self._active_configs.values():
-                    config.size = size
+            for var_type, var_names in self._last_vars.items():
+                for var_name in var_names:
+                    view_specs = self.get_view_specs(var_name)
+                    if not view_specs:
+                        continue
+                    size = auto_size_to_col(len(view_specs))
+                    for view_spec in view_specs:
+                        self.get_view(view_spec, var_type).config.size = size
         else:
             # Apply a uniform size to all active views.
             for config in self._active_configs.values():
@@ -505,113 +513,89 @@ class ViewManager(TrameComponent):
         export_items = []
         # Build a lookup from variable type to the matching group border color.
         type_to_color = {vt["name"]: vt["color"] for vt in self.state.variable_types}
-        with DivLayout(self.server, template_name="auto_layout") as self.ui:
-            if self.state.layout_grouped:
-                with v3.VCol(classes="pa-1"):
-                    for var_type, var_names in variables.items():
-                        for var_name in var_names:
-                            view_specs = self.get_view_specs(var_name)
-                            if not view_specs:
-                                continue
+        flat_vars = []
+        for var_type, var_names in variables.items():
+            for var_name in var_names:
+                view_specs = self.get_view_specs(var_name)
+                if not view_specs:
+                    continue
+                flat_vars.append((var_type, var_name, view_specs, self._group_orders.get(var_name)))
 
-                            type_name = (
-                                ", ".join(var_type)
-                                if isinstance(var_type, (list, tuple))
-                                else str(var_type)
-                            )
-                            border_color = type_to_color.get(type_name, "primary")
-                            with v3.VAlert(
-                                border="start",
-                                classes="pr-1 py-1 pl-3 mb-6",
-                                variant="flat",
-                                border_color=border_color,
-                            ):
-                                html.Div(
-                                    var_name,
-                                    classes="text-subtitle-2 font-weight-medium mb-1",
-                                )
-                                with v3.VRow(dense=True):
-                                    use_config_size = (
-                                        self.state.comparison_mode == "multi-sim"
-                                    )
-                                    if not use_config_size:
-                                        views_per_row = max(1, len(view_specs))
-                                        group_cols = max(
-                                            1, math.floor(12 / views_per_row)
-                                        )
-                                    group_swap_items = [
-                                        {
-                                            "name": view_spec["array_name"],
-                                            "label": view_spec.get(
-                                                "label", view_spec["array_name"]
+        current_group_order = {var_name: saved for _, var_name, _, saved in flat_vars if saved is not None}
+        next_group_order_idx = (max(current_group_order.values()) + 1) if current_group_order else 1
+        for _, var_name, _, saved in flat_vars:
+            if saved is None:
+                current_group_order[var_name] = next_group_order_idx
+                next_group_order_idx += 1
+
+        self._group_orders = current_group_order
+
+        grouped_entries = sorted(
+            (
+                (current_group_order[var_name], var_type, var_name, view_specs)
+                for var_type, var_name, view_specs, _ in flat_vars
+            ),
+            key=lambda item: item[0],
+        )
+
+        with DivLayout(self.server, template_name="auto_layout") as self.ui:
+            group_names = [var_name for _, _, var_name, _ in grouped_entries]
+
+            with v3.VCol(classes="pa-1"):
+                for _, var_type, var_name, view_specs in grouped_entries:
+                    type_name = (
+                        ", ".join(var_type)
+                        if isinstance(var_type, (list, tuple))
+                        else str(var_type)
+                    )
+                    border_color = type_to_color.get(type_name, "primary")
+                    with v3.VAlert(
+                        border="start",
+                        classes="pr-1 py-1 pl-3 mb-6",
+                        variant="flat",
+                        border_color=border_color,
+                        key=f"group-{var_name}",
+                    ):
+                        with html.Div(
+                            var_name,
+                            classes=(
+                                "text-subtitle-2 "
+                                "font-weight-medium mb-1 d-inline-block"
+                            ),
+                            style="user-select: none; cursor: pointer;",
+                        ):
+                            with v3.VMenu(activator="parent"):
+                                with v3.VList(
+                                    density="compact",
+                                    style="max-height: 40vh;",
+                                ):
+                                    for swap_name in group_names:
+                                        if swap_name == var_name:
+                                            continue
+                                        v3.VListItem(
+                                            title=swap_name,
+                                            click=(
+                                                self.ctrl.swap_variable_groups,
+                                                f"['{var_name}', '{swap_name}']",
                                             ),
-                                        }
-                                        for view_spec in view_specs
-                                    ]
-                                    for view_spec in view_specs:
-                                        view = self.get_view(view_spec, var_type)
-                                        export_items.append(
-                                            {
-                                                "title": view_spec.get(
-                                                    "label", view_spec["array_name"]
-                                                ),
-                                                "value": view_spec["array_name"],
-                                            }
                                         )
-                                        view.config.swap_group = sorted(
-                                            [
-                                                item
-                                                for item in group_swap_items
-                                                if item["name"]
-                                                != view_spec["array_name"]
-                                            ],
-                                            key=lambda item: item["name"],
-                                        )
-                                        with view.config.provide_as("config"):
-                                            v3.VCol(
-                                                v_if="config.break_row",
-                                                cols=12,
-                                                classes="pa-0",
-                                                style=("`order: ${config.order};`",),
-                                            )
-                                            # For flow handling
-                                            with v3.Template(v_if="!config.size"):
-                                                v3.VCol(
-                                                    v_for="i in config.offset",
-                                                    key="i",
-                                                    style=("{ order: config.order }",),
-                                                )
-                                            with v3.VCol(
-                                                offset=(
-                                                    "config.size ? config.offset * config.size : 0",
-                                                )
-                                                if use_config_size
-                                                else ("config.offset * config.size",),
-                                                cols=("config.size",)
-                                                if use_config_size
-                                                else group_cols,
-                                                style=("`order: ${config.order};`",),
-                                            ):
-                                                client.ServerTemplate(name=view.name)
-            else:
-                all_swap_items = []
-                for var_name_list in variables.values():
-                    for var_name in var_name_list:
-                        all_swap_items.extend(
-                            [
+                        with v3.VRow(dense=True):
+                            use_config_size = (
+                                self.state.comparison_mode == "multi-sim"
+                            )
+                            if not use_config_size:
+                                views_per_row = max(1, len(view_specs))
+                                group_cols = max(
+                                    1, math.floor(12 / views_per_row)
+                                )
+                            panel_options = [
                                 {
-                                    "name": view_spec["array_name"],
-                                    "label": view_spec.get(
-                                        "label", view_spec["array_name"]
-                                    ),
+                                    "name": vs["array_name"],
+                                    "label": vs.get("label", vs["array_name"]),
                                 }
-                                for view_spec in self.get_view_specs(var_name)
+                                for vs in view_specs
                             ]
-                        )
-                with v3.VRow(dense=True, classes="pa-2"):
-                    for var_type, var_names in variables.items():
-                        for name in var_names:
-                            for view_spec in self.get_view_specs(name):
+                            for view_spec in view_specs:
                                 view = self.get_view(view_spec, var_type)
                                 export_items.append(
                                     {
@@ -624,7 +608,7 @@ class ViewManager(TrameComponent):
                                 view.config.swap_group = sorted(
                                     [
                                         item
-                                        for item in all_swap_items
+                                        for item in panel_options
                                         if item["name"] != view_spec["array_name"]
                                     ],
                                     key=lambda item: item["name"],
@@ -636,7 +620,6 @@ class ViewManager(TrameComponent):
                                         classes="pa-0",
                                         style=("`order: ${config.order};`",),
                                     )
-
                                     # For flow handling
                                     with v3.Template(v_if="!config.size"):
                                         v3.VCol(
@@ -647,39 +630,40 @@ class ViewManager(TrameComponent):
                                     with v3.VCol(
                                         offset=(
                                             "config.size ? config.offset * config.size : 0",
-                                        ),
-                                        cols=("config.size",),
+                                        )
+                                        if use_config_size
+                                        else ("config.offset * config.size",),
+                                        cols=("config.size",)
+                                        if use_config_size
+                                        else group_cols,
                                         style=("`order: ${config.order};`",),
+                                        key=view_spec["array_name"],
                                     ):
                                         client.ServerTemplate(name=view.name)
 
         self.state.animation_export_items = export_items
 
-        # Assign any missing order.
         self._active_configs = {}
-        existed_order = set()
-        order_max = 0
-        orders_to_update = []
-        for var_type, var_names in variables.items():
-            for var_name in var_names:
-                for view_spec in self.get_view_specs(var_name):
-                    config = self.get_view(view_spec, var_type).config
-                    name = view_spec["array_name"]
-                    self._active_configs[name] = config
-                    if config.order:
-                        if config.order in existed_order:
-                            config.order = 0
-                            orders_to_update.append(config)
-                            continue
-                        order_max = max(order_max, config.order)
-                        existed_order.add(config.order)
-                    else:
-                        orders_to_update.append(config)
+        next_order_idx = 1
+        for _, var_type, _, view_specs in grouped_entries:
+            view_items = [
+                (index, view_spec, self.get_view(view_spec, var_type))
+                for index, view_spec in enumerate(view_specs)
+            ]
+            if self.state.comparison_mode != "multi-sim":
+                view_items = sorted(
+                    view_items,
+                    key=lambda item: (
+                        item[2].config.order or len(view_specs) + item[0],
+                        item[0],
+                    ),
+                )
 
-        next_order = order_max + 1
-        for config in orders_to_update:
-            config.order = next_order
-            next_order += 1
+            for _, view_spec, view in view_items:
+                config = view.config
+                config.order = next_order_idx
+                self._active_configs[view_spec["array_name"]] = config
+                next_order_idx += 1
 
         self.layout_dirty = True
         self.compute_layout()
