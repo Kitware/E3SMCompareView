@@ -591,8 +591,15 @@ class EAMApp(TrameApp):
         }
         for view_state in state_content["views"]:
             view_type = view_state["type"]
-            array_name = view_state.get("array_name", view_state["name"])
-            view = self.view_manager.get_view(array_name, view_type)
+            var_name = view_state["name"]
+            array_name = view_state.get("array_name", var_name)
+
+            view_spec = next(
+                (c for c in self.view_manager.get_view_specs(var_name)
+                 if c["array_name"] == array_name),
+                None,
+            )
+            view = self.view_manager.get_view(view_spec or array_name, view_type)
 
             # Extract state
             cfg = dict(view_state.get("config", {}))  # need a copy as we pop things out
