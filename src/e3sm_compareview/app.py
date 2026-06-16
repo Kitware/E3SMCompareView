@@ -660,8 +660,12 @@ class EAMApp(TrameApp):
         if self.source.data_reader.valid:
             with self.state as s:
                 next_tools = [
-                    "select-simulations",
-                    *(tool for tool in s.active_tools if tool != "load-data"),
+                    "select-fields",
+                    *(
+                        tool
+                        for tool in s.active_tools
+                        if tool not in {"load-data", "select-simulations"}
+                    ),
                 ]
                 s.active_tools = list(dict.fromkeys(next_tools))
 
