@@ -24,6 +24,40 @@ class ViewConfiguration(dataclass.StateDataModel):
     swap_group: list[dict[str, str]] = dataclass.Sync(list[dict[str, str]], list)
 
 
+class CompareColormapConfig(ColormapConfig):
+    def __init__(self, *args, default_range_fn, **kwargs):
+        self._default_range_fn = default_range_fn
+        super().__init__(*args, **kwargs)
+
+    def update_color_range(self):
+        if self.override_range:
+            nan_min = math.isnan(self.color_range[0])
+            nan_max = math.isnan(self.color_range[1])
+            if nan_min:
+                self.color_value_min_valid = False
+            if nan_max:
+                self.color_value_max_valid = False
+            if nan_min or nan_max:
+                return
+        else:
+            data_range = self._default_range_fn()
+            if data_range is not None:
+                self.color_range = data_range
+                self.color_value_min = str(data_range[0])
+                self.color_value_max = str(data_range[1])
+                self.color_value_min_valid = True
+                self.color_value_max_valid = True
+
+        self.update_color_preset(
+            self.preset,
+            self.invert,
+            self.use_log_scale,
+            self.discrete_log,
+            self.n_discrete_colors,
+            self.n_ticks,
+        )
+
+
 class VariableView(TrameComponent):
     def __init__(self, server, source, view_spec, variable_type, camera):
         super().__init__(server)
@@ -63,17 +97,16 @@ class VariableView(TrameComponent):
         self.renderer.AddActor(self.actor)
 
         # Lookup table color management
-        self.colormap = ColormapConfig(
+        self.colormap = CompareColormapConfig(
             server,
             mapper=self.mapper,
             data_array_fn=lambda: self._get_data_array(self.array_name),
+            default_range_fn=self._get_default_range,
         ).set_data_array(
             self.array_name, lambda: self._get_data_array(self.array_name), "cell"
         )
+        self._sync_diverging_mode()
         self.colormap.watch(["mapper_change"], lambda *_: self.render())
-
-        if self.role in ("diff", "comp1", "comp2"):
-            self.colormap.diverging = True
 
         self._connect_pipeline_input()
 
@@ -102,7 +135,19 @@ class VariableView(TrameComponent):
         self.display_label = view_spec["label"]
         self.config.base_variable = self.base_variable
         self.config.label = self.display_label
+        self._sync_diverging_mode()
         self._connect_pipeline_input()
+
+    def _sync_diverging_mode(self):
+        is_diverging = self.role in ("diff", "comp1", "comp2")
+        self.colormap.diverging = is_diverging
+
+        # The generic diverging handler forces override_range=True so the
+        # symmetric range it computes will stick. CompareView needs diverging
+        # presets/ticks, but it also needs slice-driven ranges to recompute
+        # from paired control/test data when override_range is not user-set.
+        if is_diverging:
+            self.colormap.override_range = False
 
     @property
     def bounds(self):
