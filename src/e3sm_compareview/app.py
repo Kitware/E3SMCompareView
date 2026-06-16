@@ -276,7 +276,6 @@ class EAMApp(TrameApp):
                                     reset_camera=self.view_manager.reset_camera,
                                 )
                                 toolbars.SimulationControls()
-                                toolbars.ComparisonMode()
                                 toolbars.Cropping()
                                 toolbars.DataSelection()
                                 toolbars.Animation()
@@ -614,7 +613,11 @@ class EAMApp(TrameApp):
         # Update layout
         self.state.aspect_ratio = state_content["layout"]["aspect-ratio"]
         self.state.active_layout = state_content["layout"]["active"]
-        self.state.active_tools = state_content["layout"]["tools"]
+        self.state.active_tools = [
+            tool
+            for tool in state_content["layout"]["tools"]
+            if tool != "comparison-controls"
+        ]
         self.state.compact_drawer = not state_content["layout"]["help"]
 
         # Update filebrowser state
@@ -664,7 +667,12 @@ class EAMApp(TrameApp):
                     *(
                         tool
                         for tool in s.active_tools
-                        if tool not in {"load-data", "select-simulations"}
+                        if tool
+                        not in {
+                            "load-data",
+                            "select-simulations",
+                            "comparison-controls",
+                        }
                     ),
                 ]
                 s.active_tools = list(dict.fromkeys(next_tools))

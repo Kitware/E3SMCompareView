@@ -7,7 +7,6 @@ from trame.widgets import vuetify3 as v3
 
 from e3sm_compareview.comparison import (
     COMPARISON_TYPES,
-    COMPARISON_TYPE_LABELS,
     MULTI_SIM_COMPARISON_LABELS,
     TWO_SIM_COLUMN_LABELS,
 )
@@ -18,7 +17,6 @@ from e3sm_quickview.utils import js
 DENSITY = {
     "adjust-layout": "compact",
     "simulation-controls": "compact",
-    "comparison-controls": "compact",
     "adjust-databounds": "default",
     "select-slice-time": "default",
     "animation-controls": "compact",
@@ -28,25 +26,6 @@ DEFAULT_STYLES = {
     "color": "white",
     "classes": "border-b-thin",
 }
-
-COMPARISON_TYPE_TOOLTIPS = {
-    "source": "Source values (no comparison)",
-    "diff": "Difference: comparison - control",
-    "comp1": "Relative difference w.r.t. control: (comparison - control) / control",
-    "comp2": (
-        "Relative difference w.r.t. mean: "
-        "2 * (comparison - control) / (comparison + control)"
-    ),
-}
-
-COLUMN_TOOLTIPS = {
-    "ctrl": "Control simulation values",
-    "test": "Test simulation values",
-    "diff": "Difference: test - control",
-    "comp1": "Relative difference w.r.t. control: (test - control) / control",
-    "comp2": "Relative difference w.r.t. mean: 2 * (test - control) / (test + control)",
-}
-
 
 def to_kwargs(value):
     return {
@@ -202,91 +181,6 @@ class Cropping(v3.VToolbar):
         self.state.crop_latitude_max = crop_latitude[1]
 
 
-class ComparisonMode(v3.VToolbar):
-    def __init__(self):
-        super().__init__(**to_kwargs("comparison-controls"))
-
-        with self:
-            v3.VIcon("mdi-compare-horizontal", classes="pl-6 opacity-50")
-            with v3.Template(v_if="comparison_mode === 'multi-sim'"):
-                v3.VLabel("Comparison", classes="text-subtitle-2 px-4")
-                for comparison_type in COMPARISON_TYPES:
-                    with v3.VTooltip(
-                        text=COMPARISON_TYPE_TOOLTIPS.get(
-                            comparison_type,
-                            MULTI_SIM_COMPARISON_LABELS.get(
-                                comparison_type, comparison_type.upper()
-                            ),
-                        ),
-                    ):
-                        with v3.Template(v_slot_activator="{ props }"):
-                            v3.VBtn(
-                                MULTI_SIM_COMPARISON_LABELS.get(
-                                    comparison_type, comparison_type.upper()
-                                ),
-                                v_bind="props",
-                                size="small",
-                                variant="outlined",
-                                color=(
-                                    f"comparison_type === '{comparison_type}' ? 'primary' : 'default'",
-                                ),
-                                classes=(
-                                    f"`mx-1 text-none ${{comparison_type === '{comparison_type}' ? '' : 'text-medium-emphasis'}}`",
-                                ),
-                                click=f"comparison_type = '{comparison_type}'",
-                            )
-                v3.VSpacer()
-                with v3.VTooltip():
-                    with v3.Template(v_slot_activator="{ props }"):
-                        v3.VLabel(
-                            "{{ Math.max(0, simulation_configs.filter(sim => sim.path !== control_simulation_file && sim.include).length) }} comparisons",
-                            v_bind="props",
-                            classes="text-caption mr-4",
-                        )
-                    html.Div(
-                        "{{ (() => { const included = simulation_configs.filter(sim => sim.path === control_simulation_file || sim.include); if (!included.length) return 'Included simulations:\\nnone'; return `Included simulations:\\n${included.map(sim => `${sim.label || sim.path.split('/').pop()}${sim.path === control_simulation_file ? ' (ctrl)' : ''}`).join('\\n')}`; })() }}",
-                        style="white-space: pre-line;",
-                    )
-
-            with v3.Template(v_else=True):
-                v3.VLabel("Columns", classes="text-subtitle-2 px-4")
-                for comp_type in ["ctrl", "test", "diff", "comp1", "comp2"]:
-                    with v3.VTooltip(
-                        text=COLUMN_TOOLTIPS.get(
-                            comp_type,
-                            COMPARISON_TYPE_LABELS.get(comp_type, comp_type.upper()),
-                        ),
-                    ):
-                        with v3.Template(v_slot_activator="{ props }"):
-                            v3.VBtn(
-                                TWO_SIM_COLUMN_LABELS[comp_type],
-                                v_bind="props",
-                                size="small",
-                                variant="outlined",
-                                color=(
-                                    "selected_columns.includes('{0}') ? 'primary' : 'default'".format(
-                                        comp_type
-                                    ),
-                                ),
-                                classes=(
-                                    f"`mx-1 text-none ${{selected_columns.includes('{comp_type}') ? '' : 'text-medium-emphasis'}}`",
-                                ),
-                                click=(
-                                    f"selected_columns.includes('{comp_type}') ? "
-                                    f"selected_columns = selected_columns.filter(c => c !== '{comp_type}') : "
-                                    f"selected_columns = [...selected_columns, '{comp_type}']"
-                                ),
-                            )
-                v3.VSpacer()
-                v3.VBtn(
-                    "Show all",
-                    size="small",
-                    variant="text",
-                    classes="mr-2 text-none",
-                    click="selected_columns = ['ctrl', 'test', 'diff', 'comp1', 'comp2']",
-                )
-
-
 class SimulationControls(v3.VToolbar):
     def __init__(self):
         super().__init__(**to_kwargs("simulation-controls"))
@@ -330,6 +224,71 @@ class SimulationControls(v3.VToolbar):
                 )
 
             v3.VDivider(vertical=True, classes="mx-2")
+            with v3.VSelect(
+                v_if="comparison_mode === 'multi-sim'",
+                v_model=("comparison_type", "diff"),
+                items=(
+                    [
+                        {
+                            "title": MULTI_SIM_COMPARISON_LABELS[comparison_type],
+                            "value": comparison_type,
+                        }
+                        for comparison_type in COMPARISON_TYPES
+                    ],
+                ),
+                item_title="title",
+                item_value="value",
+                label="Comparison type",
+                chips=True,
+                density="compact",
+                variant="solo",
+                hide_details=True,
+                classes="mx-1",
+                style="min-width: 14rem; max-width: 18rem;",
+            ):
+                with v3.Template(v_slot_selection="{ item }"):
+                    with html.Div(classes="d-flex align-center py-1"):
+                        v3.VChip(
+                            "{{ item.raw.title }}",
+                            size="small",
+                            color="primary",
+                            variant="outlined",
+                        )
+            with v3.VSelect(
+                v_else=True,
+                v_model=("selected_columns", ["ctrl", "test", "diff", "comp1", "comp2"]),
+                items=(
+                    [
+                        {
+                            "title": TWO_SIM_COLUMN_LABELS[column],
+                            "value": column,
+                        }
+                        for column in ["ctrl", "test", "diff", "comp1", "comp2"]
+                    ],
+                ),
+                item_title="title",
+                item_value="value",
+                label="Comparison columns",
+                multiple=True,
+                density="compact",
+                variant="solo",
+                hide_details=True,
+                classes="mx-1",
+                style="min-width: 0; max-width: 19rem;",
+            ):
+                with v3.Template(v_slot_selection="{ item, index }"):
+                    with html.Div(
+                        v_if="index === 0",
+                        classes="d-flex align-center flex-nowrap w-100 overflow-hidden pt-1",
+                        style="max-width: 100%;",
+                    ):
+                        html.Div(
+                            "{{ selected_columns.length === 1 ? item.raw.title : `${selected_columns.length} selected` }}",
+                            classes="text-body-2 text-truncate",
+                        )
+
+            v3.VSpacer()
+
             with v3.VSelect(
                 v_model=("control_simulation_file", ""),
                 items=("simulation_configs", []),
@@ -379,8 +338,6 @@ class SimulationControls(v3.VToolbar):
                             color="primary",
                             variant="outlined",
                         )
-
-            v3.VSpacer()
 
             v3.VBtn(
                 "Organize simulation collection",

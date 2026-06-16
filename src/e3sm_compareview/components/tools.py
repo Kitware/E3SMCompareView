@@ -114,7 +114,6 @@ class Tools(v3.VNavigationDrawer):
                             "adjust-layout",
                             "select-slice-time",
                             "simulation-controls",
-                            "comparison-controls",
                         ],
                     ),
                 ):
@@ -136,12 +135,6 @@ class Tools(v3.VNavigationDrawer):
                         title="Simulation Controls",
                         icon="mdi-database-cog-outline",
                         value="simulation-controls",
-                    )
-                    qv_tools.ToggleButton(
-                        compact="compact_drawer",
-                        title="Comparison mode",
-                        icon="mdi-compare-horizontal",
-                        value="comparison-controls",
                     )
 
                     v3.VDivider(classes="my-1")
