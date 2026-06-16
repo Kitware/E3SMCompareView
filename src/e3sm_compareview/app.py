@@ -98,7 +98,7 @@ class EAMApp(TrameApp):
                 "comparison_mode": "multi-sim",
                 "comparison_type": "diff",
                 "selected_columns": ["ctrl", "test", "diff", "comp1", "comp2"],
-                "projection": ["Mollweide"],
+                "projection": ["Robinson"],
                 "dragged_simulation_path": "",
             }
         )
@@ -327,10 +327,10 @@ class EAMApp(TrameApp):
         if isinstance(projection, (list, tuple)):
             if projection:
                 return projection[0]
-            return "Mollweide"
+            return "Robinson"
         if isinstance(projection, str):
             return projection
-        return "Mollweide"
+        return "Robinson"
 
     def _ensure_two_sim_target(self):
         if self.state.comparison_mode != "two-sim":

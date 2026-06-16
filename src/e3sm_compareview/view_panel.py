@@ -77,14 +77,6 @@ class VariableView(TrameComponent):
         self._bounds_key = f"{self.name}_bounds"
         self._size = (0, 0)
 
-        if self.role in ("control", "test", "source"):
-            self.config.preset = "navia"
-        elif self.role == "diff":
-            self.config.preset = "Cool to Warm (Extended)"
-        elif self.role in ("comp1", "comp2"):
-            self.config.preset = "bam"
-            self.config.invert = True
-
         self.disable_render = False
 
         self.renderer = vtkRenderer()
@@ -105,6 +97,10 @@ class VariableView(TrameComponent):
         ).set_data_array(
             self.array_name, lambda: self._get_data_array(self.array_name), "cell"
         )
+
+        if self.role in ("control", "test", "source"):
+            self.colormap.preset = "Rainbow Desaturated"
+
         self._sync_diverging_mode()
         self.colormap.watch(["mapper_change"], lambda *_: self.render())
 

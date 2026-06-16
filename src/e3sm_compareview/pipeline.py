@@ -22,6 +22,10 @@ from e3sm_compareview.comparison import (
     COMPARISON_TYPE_TITLE_SUFFIXES,
 )
 
+COASTLINE_COLOR = (0.5, 0.5, 0.5)
+GRIDLINE_COLOR = (0.5, 0.5, 0.5)
+GRIDLINE_OPACITY = 0.55
+
 
 def range_to_trim(value_range, max_value):
     """Convert [-max, max] coordinate ranges into [left_trim, right_trim]."""
@@ -60,7 +64,7 @@ class ErrorObserver:
 
 
 class Continent:
-    def __init__(self, projection="Mollweide"):
+    def __init__(self, projection="Robinson"):
         self._projection = projection
         self.clip_longitude = [-180.0, 180.0]
         self.clip_latitude = [-90.0, 90.0]
@@ -98,8 +102,8 @@ class Continent:
         prop.SetRepresentationToWireframe()
         prop.SetRenderLinesAsTubes(1)
         prop.SetLineWidth(1.0)
-        prop.SetAmbientColor(0.67, 0.67, 0.67)
-        prop.SetDiffuseColor(0.67, 0.67, 0.67)
+        prop.SetAmbientColor(*COASTLINE_COLOR)
+        prop.SetDiffuseColor(*COASTLINE_COLOR)
 
     @property
     def projection(self):
@@ -131,7 +135,7 @@ class Continent:
 
 
 class GridLines:
-    def __init__(self, projection="Mollweide"):
+    def __init__(self, projection="Robinson"):
         self._projection = projection
         self.clip_longitude = [-180.0, 180.0]
         self.clip_latitude = [-90.0, 90.0]
@@ -154,9 +158,9 @@ class GridLines:
         self.actor.SetMapper(self.mapper)
         prop = self.actor.GetProperty()
         prop.SetRepresentationToWireframe()
-        prop.SetAmbientColor(0.67, 0.67, 0.67)
-        prop.SetDiffuseColor(0.67, 0.67, 0.67)
-        prop.SetOpacity(0.4)
+        prop.SetAmbientColor(*GRIDLINE_COLOR)
+        prop.SetDiffuseColor(*GRIDLINE_COLOR)
+        prop.SetOpacity(GRIDLINE_OPACITY)
 
     @property
     def projection(self):
@@ -189,7 +193,7 @@ class GridLines:
 
 
 class DataReader:
-    def __init__(self, projection="Mollweide"):
+    def __init__(self, projection="Robinson"):
         self.valid = False
         self.conn_file = None
         self.simulation_files = []
@@ -689,7 +693,7 @@ if area_np is not None:
 
 class EAMVisSource:
     def __init__(self):
-        self.projection = "Mollweide"
+        self.projection = "Robinson"
         load_plugins()
         self.data_reader = DataReader(self.projection)
         self.continent = Continent(self.projection)
