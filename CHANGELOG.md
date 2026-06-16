@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v1.8.1 (2026-06-16)
+
+### Bug Fixes
+
+- Fix un-synced colorbars
+  ([`e0b1b60`](https://github.com/Kitware/E3SMQuickCompare/commit/e0b1b60e7169a43380800c333387ac9d927a9dc7))
+
+- Open Variable Selection after file load
+  ([`dfddf42`](https://github.com/Kitware/E3SMQuickCompare/commit/dfddf4221cc107ec9203964069332bb0e31d7532))
+
+- Update aesthetics
+  ([`8a3957e`](https://github.com/Kitware/E3SMQuickCompare/commit/8a3957e236a577d2fac94ddbb98d11388fb251c7))
+
+### Refactoring
+
+- Combine comparison toolbar into simulation toolbar
+  ([`f089e93`](https://github.com/Kitware/E3SMQuickCompare/commit/f089e9353815d8a275a9e4d072e9458407376531))
+
+
 ## v1.8.0 (2026-06-12)
 
 ### Bug Fixes
