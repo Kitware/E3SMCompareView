@@ -2,6 +2,7 @@ import math
 
 import vtkmodules.vtkRenderingOpenGL2  # noqa: F401
 from trame.app import TrameComponent, dataclass
+from trame.app.dataclass import watch
 from trame.dataclasses.colormaps import ColormapConfig
 from trame.ui.html import DivLayout
 from trame.widgets import colormaps, html, rca
@@ -27,10 +28,26 @@ class ViewConfiguration(dataclass.StateDataModel):
 class CompareColormapConfig(ColormapConfig):
     def __init__(self, *args, default_range_fn, **kwargs):
         self._default_range_fn = default_range_fn
+        self._syncing_auto_abs_max = False
+        self._diverging_manual_override = False
         super().__init__(*args, **kwargs)
 
+    def _parse_abs_max(self):
+        try:
+            v = float(str(self.abs_max).strip())
+        except (TypeError, ValueError):
+            return None
+        return None if (math.isnan(v) or v <= 0) else v
+
     def update_color_range(self):
-        if self.override_range:
+        if self.diverging and self._diverging_manual_override:
+            abs_max = self._parse_abs_max()
+            if abs_max is None:
+                self.abs_max_valid = False
+                return
+            self.abs_max_valid = True
+            data_range = (-abs_max, abs_max)
+        elif self.override_range and not self.diverging:
             nan_min = math.isnan(self.color_range[0])
             nan_max = math.isnan(self.color_range[1])
             if nan_min:
@@ -39,14 +56,19 @@ class CompareColormapConfig(ColormapConfig):
                 self.color_value_max_valid = False
             if nan_min or nan_max:
                 return
+            data_range = self.color_range
         else:
             data_range = self._default_range_fn()
-            if data_range is not None:
-                self.color_range = data_range
-                self.color_value_min = str(data_range[0])
-                self.color_value_max = str(data_range[1])
-                self.color_value_min_valid = True
-                self.color_value_max_valid = True
+            if data_range is None:
+                return
+            if self.diverging:
+                self._sync_abs_max_from_range(data_range)
+
+        self.color_range = data_range
+        self.color_value_min = str(data_range[0])
+        self.color_value_max = str(data_range[1])
+        self.color_value_min_valid = True
+        self.color_value_max_valid = True
 
         self.update_color_preset(
             self.preset,
@@ -56,6 +78,55 @@ class CompareColormapConfig(ColormapConfig):
             self.n_discrete_colors,
             self.n_ticks,
         )
+
+    @watch("diverging")
+    def _on_diverging_change(self, diverging):
+        if diverging:
+            if self.use_log_scale == "log":
+                self.use_log_scale = "linear"
+
+        self._diverging_manual_override = False
+        self.override_range = False
+        self.update_color_range()
+
+    def _sync_abs_max_from_range(self, data_range):
+        if self._diverging_manual_override or data_range is None:
+            return
+
+        max_abs = max(abs(data_range[0]), abs(data_range[1]))
+        self.abs_max_valid = True
+        next_abs_max = str(max_abs)
+        if self.abs_max == next_abs_max:
+            return
+        self._syncing_auto_abs_max = True
+        self.abs_max = next_abs_max
+
+    @watch("abs_max")
+    def _on_abs_max_change(self, abs_max):
+        if self._syncing_auto_abs_max:
+            self._syncing_auto_abs_max = False
+            return
+
+        raw_value = str(abs_max).strip()
+
+        if not self.diverging:
+            return
+
+        if raw_value == "":
+            self.abs_max_valid = True
+            self._diverging_manual_override = False
+            self.override_range = False
+            self.update_color_range()
+            return
+
+        abs_max_value = self._parse_abs_max()
+        self.abs_max_valid = abs_max_value is not None
+        if abs_max_value is None:
+            return
+
+        self._diverging_manual_override = True
+        self.override_range = False
+        self.update_color_range()
 
 
 class VariableView(TrameComponent):
@@ -104,6 +175,9 @@ class VariableView(TrameComponent):
         if self.role == "diff":
             self.colormap.preset = "Cool to Warm (Extended)"
 
+        if self.role in ("comp1", "comp2"):
+            self.colormap.preset = "Blue Orange (Divergent)"
+
         self._sync_diverging_mode()
         self.colormap.watch(["mapper_change"], lambda *_: self.render())
 
@@ -140,11 +214,6 @@ class VariableView(TrameComponent):
     def _sync_diverging_mode(self):
         is_diverging = self.role in ("diff", "comp1", "comp2")
         self.colormap.diverging = is_diverging
-
-        # The generic diverging handler forces override_range=True so the
-        # symmetric range it computes will stick. CompareView needs diverging
-        # presets/ticks, but it also needs slice-driven ranges to recompute
-        # from paired control/test data when override_range is not user-set.
         if is_diverging:
             self.colormap.override_range = False
 
