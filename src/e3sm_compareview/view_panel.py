@@ -281,6 +281,46 @@ class VariableView(TrameComponent):
         return None
 
     def _get_multi_sim_default_range(self):
+        view_specs = self.source.data_reader.get_view_specs(
+            self.base_variable,
+            "multi-sim",
+            self.comparison_type,
+        )
+
+        if self.comparison_type == "source":
+            range_min = None
+            range_max = None
+            for view_spec in view_specs:
+                data_range = self._get_data_array_range(view_spec["array_name"])
+                if data_range is None:
+                    continue
+                range_min = (
+                    data_range[0]
+                    if range_min is None
+                    else min(range_min, data_range[0])
+                )
+                range_max = (
+                    data_range[1]
+                    if range_max is None
+                    else max(range_max, data_range[1])
+                )
+
+            if range_min is not None and range_max is not None:
+                return (range_min, range_max)
+
+        if self.comparison_type in ("diff", "comp1", "comp2") and self.role != "control":
+            comparison_ranges = []
+            for view_spec in view_specs:
+                if view_spec["role"] == "control":
+                    continue
+                data_range = self._get_data_array_range(view_spec["array_name"])
+                if data_range is not None:
+                    comparison_ranges.append(data_range)
+
+            centered = self._max_abs_from_ranges(comparison_ranges)
+            if centered is not None:
+                return centered
+
         data_range = self._get_data_array_range(self.array_name)
         if self.role in ("diff", "comp1", "comp2"):
             return self._max_abs_from_ranges([data_range])
