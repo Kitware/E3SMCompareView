@@ -101,6 +101,9 @@ class VariableView(TrameComponent):
         if self.role in ("control", "test", "source"):
             self.colormap.preset = "Rainbow Desaturated"
 
+        if self.role == "diff":
+            self.colormap.preset = "Cool to Warm (Extended)"
+
         self._sync_diverging_mode()
         self.colormap.watch(["mapper_change"], lambda *_: self.render())
 
