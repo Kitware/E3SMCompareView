@@ -280,6 +280,12 @@ class ViewManager(TrameComponent):
         array_name = view_spec["array_name"]
         view = self._var2view.get(array_name)
         if view is None:
+            current_size = None
+            if self.state.comparison_mode == "multi-sim":
+                for config in self._active_configs.values():
+                    if config.size:
+                        current_size = config.size
+                        break
             view = self._var2view.setdefault(
                 array_name,
                 VariableView(
@@ -290,6 +296,8 @@ class ViewManager(TrameComponent):
                     self._camera,
                 ),
             )
+            if current_size is not None:
+                view.config.size = current_size
         else:
             view.update_view_spec(view_spec)
 
