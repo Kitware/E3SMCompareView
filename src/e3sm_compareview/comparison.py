@@ -3,6 +3,7 @@ from pathlib import Path
 
 COMPARISON_TYPES = ("source", "diff", "comp1", "comp2")
 COMPARISON_MODES = ("two-sim", "multi-sim")
+DEFAULT_TWO_SIM_COLUMNS = ["ctrl", "test", "diff", "comp1"]
 COMPARISON_TYPE_LABELS = {
     "source": "Source",
     "diff": "Diff",

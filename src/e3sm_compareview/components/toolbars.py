@@ -7,6 +7,7 @@ from trame.widgets import vuetify3 as v3
 
 from e3sm_compareview.comparison import (
     COMPARISON_TYPES,
+    DEFAULT_TWO_SIM_COLUMNS,
     MULTI_SIM_COMPARISON_LABELS,
     TWO_SIM_COLUMN_LABELS,
 )
@@ -256,7 +257,7 @@ class SimulationControls(v3.VToolbar):
                         )
             with v3.VSelect(
                 v_else=True,
-                v_model=("selected_columns", ["ctrl", "test", "diff", "comp1", "comp2"]),
+                v_model=("selected_columns", DEFAULT_TWO_SIM_COLUMNS),
                 items=(
                     [
                         {

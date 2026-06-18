@@ -21,6 +21,7 @@ from e3sm_compareview.comparison import (
     active_simulation_configs,
     build_simulation_configs,
     comparison_signature_for,
+    DEFAULT_TWO_SIM_COLUMNS,
     label_signature_for,
     normalize_comparison_mode,
     normalize_comparison_type,
@@ -97,7 +98,7 @@ class EAMApp(TrameApp):
                 "two_sim_test_simulation_file": "",
                 "comparison_mode": "multi-sim",
                 "comparison_type": "diff",
-                "selected_columns": ["ctrl", "test", "diff", "comp1", "comp2"],
+                "selected_columns": DEFAULT_TWO_SIM_COLUMNS,
                 "projection": ["Robinson"],
                 "dragged_simulation_path": "",
             }
