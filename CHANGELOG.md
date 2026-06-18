@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v1.8.2 (2026-06-18)
+
+### Bug Fixes
+
+- Apply column layout size to all multi-sim views
+  ([`c5d2717`](https://github.com/Kitware/E3SMQuickCompare/commit/c5d27178204d061220d097a6ee15ba68c9913817))
+
+- Correct default Rel Diff colormap
+  ([`f226acf`](https://github.com/Kitware/E3SMQuickCompare/commit/f226acf6544065e021b55fe76c101dfe2aba85bb))
+
+- Fix diff colorbars to be editable
+  ([`2ad0d79`](https://github.com/Kitware/E3SMQuickCompare/commit/2ad0d79d33af2e8af702014bfda809dcc23290d2))
+
+- Remove Rel Diff (w.r.t. mean) as default two-sim column
+  ([`672e374`](https://github.com/Kitware/E3SMQuickCompare/commit/672e374b7ab219770bf6b3e3cefec8bbc7949c33))
+
+
 ## v1.8.1 (2026-06-16)
 
 ### Bug Fixes
