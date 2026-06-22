@@ -12,7 +12,7 @@ the near [future](../future.md).
 ## Clone the repo
 
 ```
-git clone https://github.com/ayenpure/QuickView.git
+git clone https://github.com/Kitware/E3SMQuickCompare.git
 cd QuickView
 ```
 
