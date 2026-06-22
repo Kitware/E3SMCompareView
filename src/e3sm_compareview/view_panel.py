@@ -190,6 +190,9 @@ class VariableView(TrameComponent):
         grid_lines_actor = source.grid_lines.actor
         if grid_lines_actor is not None:
             self.renderer.AddActor(grid_lines_actor)
+        perimeter_actor = source.grid_lines.perimeter_actor
+        if perimeter_actor is not None:
+            self.renderer.AddActor(perimeter_actor)
 
         # GUI
         self._build_ui()

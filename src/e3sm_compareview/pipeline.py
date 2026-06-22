@@ -1,6 +1,7 @@
 from collections import defaultdict
 import fnmatch
 import json
+import math
 import os
 
 import e3sm_quickview
@@ -13,8 +14,21 @@ from paraview.simple import (
     OutputPort,
     ProgrammableFilter,
 )
-from vtkmodules.vtkCommonCore import vtkLogger
-from vtkmodules.vtkRenderingCore import vtkActor, vtkPolyDataMapper
+from vtkmodules.vtkCommonCore import vtkLogger, vtkUnsignedCharArray
+from vtkmodules.vtkCommonDataModel import vtkImageData
+from vtkmodules.vtkCommonTransforms import vtkTransform
+from vtkmodules.vtkFiltersCore import (
+    vtkAppendArcLength,
+    vtkAssignAttribute,
+    vtkExtractCells,
+)
+from vtkmodules.vtkFiltersGeometry import vtkGeometryFilter
+from vtkmodules.vtkRenderingCore import (
+    vtkActor,
+    vtkDataSetMapper,
+    vtkPolyDataMapper,
+    vtkTexture,
+)
 
 from e3sm_compareview.comparison import (
     COMPARISON_TYPES,
@@ -23,8 +37,11 @@ from e3sm_compareview.comparison import (
 )
 
 COASTLINE_COLOR = (0.5, 0.5, 0.5)
-GRIDLINE_COLOR = (0.5, 0.5, 0.5)
-GRIDLINE_OPACITY = 0.55
+COASTLINE_WIDTH = 0.5
+GRIDLINE_COLOR = (0.0, 0.0, 0.0)
+GRIDLINE_WIDTH = 0.5
+GRIDLINE_DASH_PERIOD_RATIO = 0.02
+MAP_PERIMETER_WIDTH = 2.0
 
 
 def range_to_trim(value_range, max_value):
@@ -101,7 +118,7 @@ class Continent:
         prop = self.actor.GetProperty()
         prop.SetRepresentationToWireframe()
         prop.SetRenderLinesAsTubes(1)
-        prop.SetLineWidth(1.0)
+        prop.SetLineWidth(COASTLINE_WIDTH)
         prop.SetAmbientColor(*COASTLINE_COLOR)
         prop.SetDiffuseColor(*COASTLINE_COLOR)
 
@@ -152,15 +169,44 @@ class GridLines:
         self.proj.Translate = 0
         self.surface = ExtractSurface(registrationName="GridSurface", Input=self.proj)
 
+        geometry = self.vtk_geometry
+        self.interior_extract = vtkExtractCells()
+        self.interior_extract.SetInputConnection(geometry.output_port)
+        self.interior_geometry = vtkGeometryFilter()
+        self.interior_geometry.SetInputConnection(self.interior_extract.GetOutputPort())
+        self.arc_length = vtkAppendArcLength()
+        self.arc_length.SetInputConnection(self.interior_geometry.GetOutputPort())
+        self.texture_coords = vtkAssignAttribute()
+        self.texture_coords.SetInputConnection(self.arc_length.GetOutputPort())
+        self.texture_coords.Assign("arc_length", "TCOORDS", "POINT_DATA")
+        self.dash_transform = vtkTransform()
+
         self.mapper = vtkPolyDataMapper()
         self.mapper.SetScalarVisibility(0)
+        self.mapper.SetInputConnection(self.texture_coords.GetOutputPort())
         self.actor = vtkActor()
         self.actor.SetMapper(self.mapper)
+        dash_texture = self._create_dash_texture()
+        dash_texture.SetTransform(self.dash_transform)
+        self.actor.SetTexture(dash_texture)
         prop = self.actor.GetProperty()
-        prop.SetRepresentationToWireframe()
+        prop.SetLineWidth(GRIDLINE_WIDTH)
         prop.SetAmbientColor(*GRIDLINE_COLOR)
         prop.SetDiffuseColor(*GRIDLINE_COLOR)
-        prop.SetOpacity(GRIDLINE_OPACITY)
+
+        self.perimeter_extract = vtkExtractCells()
+        self.perimeter_extract.SetInputConnection(geometry.output_port)
+        self.perimeter_mapper = vtkDataSetMapper()
+        self.perimeter_mapper.SetScalarVisibility(0)
+        self.perimeter_mapper.SetInputConnection(
+            self.perimeter_extract.GetOutputPort()
+        )
+        self.perimeter_actor = vtkActor()
+        self.perimeter_actor.SetMapper(self.perimeter_mapper)
+        perimeter_prop = self.perimeter_actor.GetProperty()
+        perimeter_prop.SetLineWidth(MAP_PERIMETER_WIDTH)
+        perimeter_prop.SetAmbientColor(*GRIDLINE_COLOR)
+        perimeter_prop.SetDiffuseColor(*GRIDLINE_COLOR)
 
     @property
     def projection(self):
@@ -186,10 +232,60 @@ class GridLines:
         self.grid_lines.LatitudeRange = self.clip_latitude
 
     def update(self, time=0.0):
-        self.grid_lines.UpdatePipeline(time)
-        self.proj.UpdatePipeline(time)
         self.surface.UpdatePipeline(time)
-        self.mapper.SetInputConnection(self.vtk_geometry.output_port)
+        self._split_grid_cells()
+
+    def _split_grid_cells(self):
+        interval = int(self.grid_lines.Interval)
+        longitude_count = self._axis_line_count(self.clip_longitude, interval)
+        latitude_count = self._axis_line_count(self.clip_latitude, interval)
+        cell_count = longitude_count + latitude_count
+
+        perimeter_ids = {0, longitude_count - 1, longitude_count, cell_count - 1}
+        interior_ids = [i for i in range(cell_count) if i not in perimeter_ids]
+
+        self.interior_extract.SetCellIds(tuple(interior_ids), len(interior_ids))
+        self.perimeter_extract.SetCellIds(tuple(perimeter_ids), len(perimeter_ids))
+        self.interior_extract.Update()
+        self.perimeter_extract.Update()
+        self._update_dash_scale()
+
+    @staticmethod
+    def _create_dash_texture():
+        pixels = vtkUnsignedCharArray()
+        pixels.SetNumberOfComponents(4)
+        pixels.InsertNextTuple4(255, 255, 255, 255)
+        pixels.InsertNextTuple4(255, 255, 255, 0)
+
+        image = vtkImageData()
+        image.SetDimensions(2, 1, 1)
+        image.GetPointData().SetScalars(pixels)
+
+        texture = vtkTexture()
+        texture.SetInputData(image)
+        texture.InterpolateOff()
+        texture.RepeatOn()
+        return texture
+
+    @staticmethod
+    def _axis_line_count(clip_range, interval):
+        return (
+            math.ceil(clip_range[1] / interval)
+            - math.floor(clip_range[0] / interval)
+            + 1
+        )
+
+    def _update_dash_scale(self):
+        interior = self.interior_extract.GetOutput()
+        if not interior.GetNumberOfCells():
+            return
+
+        bounds = interior.GetBounds()
+        map_span = math.hypot(bounds[1] - bounds[0], bounds[3] - bounds[2])
+        dash_period = map_span * GRIDLINE_DASH_PERIOD_RATIO
+        if dash_period:
+            self.dash_transform.Identity()
+            self.dash_transform.Scale(1 / dash_period, 1, 1)
 
 
 class DataReader:
