@@ -77,6 +77,7 @@ class FieldSelectionTool(v3.VTooltip):
                 with v3.VListItem(
                     v_bind="props",
                     active=(js.is_active("select-fields"),),
+                    active_class="border-primary border-md border-primary border-opacity-100",
                     prepend_icon="mdi-list-status",
                     title=(f"{compact} ? null : 'Variable selection'",),
                     click=click,
