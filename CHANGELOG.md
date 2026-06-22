@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.8.3 (2026-06-22)
+
+### Bug Fixes
+
+- Multi-sim panels share colorbar ranges
+  ([`c6ab202`](https://github.com/Kitware/E3SMQuickCompare/commit/c6ab20299ad9c799e84dc0b950c29a572fe48b3f))
+
+### Documentation
+
+- Update repo link
+  ([`5f5c543`](https://github.com/Kitware/E3SMQuickCompare/commit/5f5c543ba17d297e03ef6578aadcda521a1bf13a))
+
+
 ## v1.8.2 (2026-06-18)
 
 ### Bug Fixes
