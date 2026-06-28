@@ -76,10 +76,10 @@ class LandingPage(v3.VContainer):
                         v3.VSpacer()
                         v3.VHotkey(keys="z", variant="contained", inline=True)
 
-            #       with v3.VRow(classes="ma-0 pb-4"):
-            #           v3.VLabel("Toggle view interaction lock")
-            #           v3.VSpacer()
-            #           v3.VHotkey(keys="space", variant="contained", inline=True)
+                    with v3.VRow(classes="ma-0 pb-4"):
+                        v3.VLabel("Toggle comparison toolbar")
+                        v3.VSpacer()
+                        v3.VHotkey(keys="space", variant="contained", inline=True)
 
                     v3.VDivider(classes="mb-4")
 

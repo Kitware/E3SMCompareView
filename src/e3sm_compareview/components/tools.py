@@ -48,24 +48,6 @@ class AppLogo(v3.VTooltip):
                     )
 
 
-class SimulationSelectionTool(v3.VTooltip):
-    def __init__(self, click=None, compact="compact_drawer"):
-        super().__init__(
-            text="Simulation selection",
-            disabled=(f"!{compact}",),
-        )
-        with self:
-            with v3.Template(v_slot_activator="{ props }"):
-                v3.VListItem(
-                    v_bind="props",
-                    active=(js.is_active("select-simulations"),),
-                    prepend_icon="mdi-database-cog-outline",
-                    title=(f"{compact} ? null : 'Simulation selection'",),
-                    click=click,
-                    disabled=("simulation_configs.length === 0",),
-                )
-
-
 class FieldSelectionTool(v3.VTooltip):
     def __init__(self, click=None, compact="compact_drawer"):
         super().__init__(
@@ -133,7 +115,7 @@ class Tools(v3.VNavigationDrawer):
                     qv_tools.Animation()
                     qv_tools.ToggleButton(
                         compact="compact_drawer",
-                        title="Simulation Controls",
+                        title="Comparison",
                         icon="mdi-database-cog-outline",
                         value="simulation-controls",
                     )

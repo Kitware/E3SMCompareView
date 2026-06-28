@@ -12,7 +12,6 @@ from e3sm_compareview.comparison import (
     TWO_SIM_COLUMN_LABELS,
 )
 from e3sm_quickview.components.toolbars import DataSelection as DataSelection
-from e3sm_quickview.components.toolbars import Layout as Layout
 from e3sm_quickview.utils import js
 
 DENSITY = {
@@ -34,6 +33,214 @@ def to_kwargs(value):
         "density": DENSITY[value],
         **DEFAULT_STYLES,
     }
+
+
+class Layout(v3.VToolbar):
+    def __init__(self, apply_size=None, zoom=None, pan=None, reset_camera=None):
+        super().__init__(**to_kwargs("adjust-layout"))
+
+        self.state.setdefault("show_zoom_controls", False)
+        self.state.setdefault("show_pan_controls", False)
+        self.state.setdefault("show_aspect_ratio", False)
+
+        with self:
+            v3.VIcon("mdi-view-module", classes="px-6 opacity-50")
+            v3.VSpacer()
+            with html.Div(classes="d-flex ga-2 align-center"):
+                with v3.VSheet(
+                    classes="d-flex align-center rounded px-1 ga-1 py-1",
+                    color=("show_aspect_ratio ? 'grey-lighten-3' : 'transparent'",),
+                ):
+                    v3.VIconBtn(
+                        v_tooltip_bottom="'Toggle aspect ratio'",
+                        icon="mdi-arrow-expand-vertical",
+                        flat=True,
+                        click="show_aspect_ratio = !show_aspect_ratio",
+                        color=("show_aspect_ratio ? 'primary' : ''",),
+                        size=("show_aspect_ratio ? 'small' : 'default'",),
+                        classes=("show_aspect_ratio ? 'ml-1' : 'rounded'",),
+                    )
+                    with (
+                        v3.VExpandXTransition(),
+                        html.Div(
+                            v_if="show_aspect_ratio",
+                            classes="d-flex align-center ga-1",
+                        ),
+                    ):
+                        v3.VDivider(vertical=True, classes="mx-1")
+                        v3.VSlider(
+                            v_tooltip_bottom="'Reduce (left) / Increase (right) vertical aspect'",
+                            v_model=("aspect_ratio", 0.5),
+                            min=0,
+                            max=4,
+                            step=0.25,
+                            show_ticks="always",
+                            density="compact",
+                            hide_details=True,
+                            style="min-width: 200px; max-width: 300px;",
+                        )
+
+                with v3.VSheet(
+                    classes="d-flex align-center rounded px-1 ga-1",
+                    color=("show_zoom_controls ? 'grey-lighten-3' : 'transparent'",),
+                ):
+                    v3.VIconBtn(
+                        v_tooltip_bottom="'Toggle zoom controls'",
+                        icon="mdi-magnify-plus-cursor",
+                        flat=True,
+                        click="show_zoom_controls = !show_zoom_controls",
+                        color=("show_zoom_controls ? 'primary' : ''",),
+                        size=("show_zoom_controls ? 'small' : 'default'",),
+                        classes=("show_zoom_controls ? 'ml-1' : 'rounded'",),
+                    )
+                    with (
+                        v3.VExpandXTransition(),
+                        html.Div(
+                            v_if="show_zoom_controls",
+                            classes="d-flex align-center ga-1",
+                        ),
+                    ):
+                        v3.VDivider(vertical=True, classes="mx-1")
+                        v3.VIconBtn(
+                            v_tooltip_bottom="'Zoom in'",
+                            icon="mdi-plus",
+                            variant="plain",
+                            click=(zoom, "[0.8333333]"),
+                        )
+                        v3.VIconBtn(
+                            v_tooltip_bottom="'Zoom out'",
+                            icon="mdi-minus",
+                            variant="plain",
+                            click=(zoom, "[1.2]"),
+                        )
+
+                with v3.VSheet(
+                    classes="d-flex align-center rounded px-1 ga-1",
+                    color=("show_pan_controls ? 'grey-lighten-3' : 'transparent'",),
+                ):
+                    v3.VIconBtn(
+                        v_tooltip="'Toggle pan controls'",
+                        icon="mdi-pan",
+                        flat=True,
+                        click="show_pan_controls = !show_pan_controls",
+                        color=("show_pan_controls ? 'primary' : ''",),
+                        size=("show_pan_controls ? 'small' : 'default'",),
+                        classes=("show_pan_controls ? 'ml-1' : 'rounded'",),
+                    )
+                    with (
+                        v3.VExpandXTransition(),
+                        html.Div(
+                            v_if="show_pan_controls",
+                            classes="d-flex align-center ga-1",
+                        ),
+                    ):
+                        v3.VDivider(vertical=True, classes="mx-1")
+                        v3.VIconBtn(
+                            v_tooltip_bottom="'Pan up'",
+                            icon="mdi-arrow-up",
+                            click=(pan, "[0, -1]"),
+                            variant="plain",
+                            classes="rounded",
+                        )
+                        v3.VIconBtn(
+                            v_tooltip_bottom="'Pan down'",
+                            icon="mdi-arrow-down",
+                            flat=True,
+                            click=(pan, "[0, 1]"),
+                            variant="plain",
+                        )
+                        v3.VIconBtn(
+                            v_tooltip_bottom="'Pan left'",
+                            icon="mdi-arrow-left",
+                            flat=True,
+                            click=(pan, "[1, 0]"),
+                            variant="plain",
+                        )
+                        v3.VIconBtn(
+                            v_tooltip_bottom="'Pan right'",
+                            icon="mdi-arrow-right",
+                            flat=True,
+                            click=(pan, "[-1, 0]"),
+                            variant="plain",
+                        )
+
+                with v3.VBtn(
+                    v_tooltip_bottom="'Auto zoom to fit'",
+                    flat=True,
+                    click=reset_camera,
+                    density="compact",
+                    icon=True,
+                    classes="ml-2",
+                ):
+                    v3.VIcon("mdi-fit-to-page-outline")
+
+                v3.VDivider(vertical=True, classes="mx-1")
+
+                with v3.VBtn(
+                    v_tooltip_bottom="'Column layout'",
+                    flat=True,
+                    icon=True,
+                    density="compact",
+                    classes="mr-4",
+                ):
+                    v3.VIcon("mdi-view-column")
+                    with v3.VMenu(activator="parent"):
+                        with v3.VList(density="compact"):
+                            with v3.VListItem(
+                                title="Full Width",
+                                click=(apply_size, "[1]"),
+                            ):
+                                with v3.Template(v_slot_append=True):
+                                    v3.VHotkey(
+                                        keys="1",
+                                        variant="contained",
+                                        inline=True,
+                                        classes="ml-6 mt-n1",
+                                    )
+                            with v3.VListItem(
+                                title="2 Columns",
+                                click=(apply_size, "[2]"),
+                            ):
+                                with v3.Template(v_slot_append=True):
+                                    v3.VHotkey(
+                                        keys="2",
+                                        variant="contained",
+                                        inline=True,
+                                        classes="ml-6 mt-n1",
+                                    )
+                            with v3.VListItem(
+                                title="3 Columns",
+                                click=(apply_size, "[3]"),
+                            ):
+                                with v3.Template(v_slot_append=True):
+                                    v3.VHotkey(
+                                        keys="3",
+                                        variant="contained",
+                                        inline=True,
+                                        classes="ml-6 mt-n1",
+                                    )
+                            with v3.VListItem(
+                                title="4 Columns",
+                                click=(apply_size, "[4]"),
+                            ):
+                                with v3.Template(v_slot_append=True):
+                                    v3.VHotkey(
+                                        keys="4",
+                                        variant="contained",
+                                        inline=True,
+                                        classes="ml-6 mt-n1",
+                                    )
+                            with v3.VListItem(
+                                title="6 Columns",
+                                click=(apply_size, "[6]"),
+                            ):
+                                with v3.Template(v_slot_append=True):
+                                    v3.VHotkey(
+                                        keys="6",
+                                        variant="contained",
+                                        inline=True,
+                                        classes="ml-6 mt-n1",
+                                    )
 
 
 class Cropping(v3.VToolbar):
@@ -363,7 +570,7 @@ class SimulationControls(v3.VToolbar):
                         classes="border-b-thin",
                     ):
                         v3.VIcon("mdi-database-cog-outline", classes="ml-4 mr-2")
-                        v3.VLabel("Simulation selection", classes="text-subtitle-2")
+                        v3.VLabel("Organize simulation collection", classes="text-subtitle-2")
                         v3.VSpacer()
                         with v3.VTooltip():
                             with v3.Template(v_slot_activator="{ props }"):
@@ -415,14 +622,7 @@ class SimulationControls(v3.VToolbar):
                                             color="primary",
                                             style="min-width: 34px; width: 34px; height: 34px;",
                                             disabled=("idx === 0",),
-                                            click="""
-if (idx > 0) {
-  const nextConfigs = [...simulation_configs];
-  const [moved] = nextConfigs.splice(idx, 1);
-  nextConfigs.splice(idx - 1, 0, moved);
-  simulation_configs = nextConfigs;
-}
-""",
+                                            click=(self._move_simulation, "[idx, -1]"),
                                         )
                                 with v3.VTooltip(text="Move down"):
                                     with v3.Template(v_slot_activator="{ props }"):
@@ -434,17 +634,8 @@ if (idx > 0) {
                                             density="comfortable",
                                             color="primary",
                                             style="min-width: 34px; width: 34px; height: 34px;",
-                                            disabled=(
-                                                "idx >= simulation_configs.length - 1",
-                                            ),
-                                            click="""
-if (idx < simulation_configs.length - 1) {
-  const nextConfigs = [...simulation_configs];
-  const [moved] = nextConfigs.splice(idx, 1);
-  nextConfigs.splice(idx + 1, 0, moved);
-  simulation_configs = nextConfigs;
-}
-""",
+                                            disabled=("idx >= simulation_configs.length - 1",),
+                                            click=(self._move_simulation, "[idx, 1]"),
                                         )
                             with v3.VCard(
                                 variant="outlined",
@@ -526,6 +717,15 @@ simulation_configs = simulation_configs.map((sim) =>
 
     def _on_control_selected(self, control_path, **_):
         self.state.control_simulation_file = control_path
+
+    def _move_simulation(self, index, step, **_):
+        configs = list(self.state.simulation_configs or [])
+        next_index = index + step
+        if index < 0 or next_index < 0 or next_index >= len(configs):
+            return
+
+        configs[index], configs[next_index] = configs[next_index], configs[index]
+        self.state.simulation_configs = configs
 
 
 class Animation(v3.VToolbar):
