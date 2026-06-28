@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 from e3sm_quickview import module as qv_module
-from e3sm_quickview.components import css, dialogs
+from e3sm_quickview.components import css
 from e3sm_quickview.utils import cli, compute
 from e3sm_quickview.utils.colors import get_type_color
 from trame.app import TrameApp, asynchronous, file_upload
@@ -28,6 +28,7 @@ from e3sm_compareview.comparison import (
     normalize_two_sim_target,
 )
 from e3sm_compareview.components import (
+    dialogs,
     doc,
     drawers,
     file_browser,
@@ -304,9 +305,12 @@ class EAMApp(TrameApp):
         from collections import defaultdict
 
         vars_per_type = defaultdict(list)
+        varmeta = self.source.data_reader.varmeta or {}
         for var in self.state.variables_selected:
-            type = self.source.data_reader.varmeta[var].dimensions
-            vars_per_type[type].append(var)
+            metadata = varmeta.get(var)
+            if metadata is None:
+                continue
+            vars_per_type[metadata.dimensions].append(var)
 
         return dict(vars_per_type)
 
@@ -459,7 +463,7 @@ class EAMApp(TrameApp):
             "tools": self.state.active_tools,
             "help": not self.state.compact_drawer,
         }
-        state_content["data-selection"] = {
+        data_selection = {
             k: self.state[k]
             for k in [
                 "time_idx",
@@ -470,8 +474,14 @@ class EAMApp(TrameApp):
                 "projection",
                 "crop_slider_edit",
                 "slice_slider_edit",
+                "animation_track",
             ]
         }
+        for dim_name in self.state.available_animation_tracks:
+            idx_key = f"{dim_name}_idx"
+            data_selection[idx_key] = self.state[idx_key]
+        state_content["data-selection"] = data_selection
+
         views_to_export = state_content["views"] = []
         for view_type, var_names in active_variables.items():
             for var_name in var_names:
@@ -564,13 +574,53 @@ class EAMApp(TrameApp):
                 "columns", self.state.selected_columns
             )
             self._ensure_two_sim_target()
+            self._refresh_source_simulations()
 
         # Load variables
-        self.state.variables_selected = state_content["variables-selection"]
-        self.state.update(state_content["data-selection"])
+        saved_variables = state_content.get("variables-selection", [])
+        valid_variables = set(self.source.data_reader.varmeta or {})
+        self.state.variables_selected = [
+            var for var in saved_variables if var in valid_variables
+        ]
+
+        data_selection = state_content.get("data-selection", {})
+        for key in (
+            "crop_longitude",
+            "crop_latitude",
+            "projection",
+            "crop_slider_edit",
+            "slice_slider_edit",
+        ):
+            if key in data_selection:
+                self.state[key] = data_selection[key]
         self.state.projection = [self._projection_name(self.state.projection)]
         await self._data_load_variables()
         self.state.variables_loaded = True
+
+        index_keys = {"time_idx", "midpoint_idx", "interface_idx"}
+        for track in self.state.available_animation_tracks:
+            index_keys.add(f"{track}_idx")
+        with self.state:
+            for key in index_keys:
+                if key in data_selection:
+                    self.state[key] = data_selection[key]
+            if (
+                data_selection.get("animation_track")
+                in self.state.available_animation_tracks
+            ):
+                self.state.animation_track = data_selection["animation_track"]
+
+        self.source.ApplyClipping(
+            self.state.crop_longitude,
+            self.state.crop_latitude,
+        )
+        self.source.UpdateProjection(self._projection_name(self.state.projection))
+        self.source.UpdatePipeline()
+        self.view_manager.refresh_pipeline_inputs()
+        self.view_manager.reset_camera()
+        self.view_manager.update_color_range()
+        self.view_manager.render()
+        self._update_field_avgs()
 
         # Update view states
         _COLORMAP_KEYS = {
