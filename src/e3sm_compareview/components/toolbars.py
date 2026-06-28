@@ -363,7 +363,7 @@ class SimulationControls(v3.VToolbar):
                         classes="border-b-thin",
                     ):
                         v3.VIcon("mdi-database-cog-outline", classes="ml-4 mr-2")
-                        v3.VLabel("Simulation selection", classes="text-subtitle-2")
+                        v3.VLabel("Organize simulation collection", classes="text-subtitle-2")
                         v3.VSpacer()
                         with v3.VTooltip():
                             with v3.Template(v_slot_activator="{ props }"):
