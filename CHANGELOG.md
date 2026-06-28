@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v1.8.4 (2026-06-28)
+
+### Bug Fixes
+
+- Don't clear variables when toggling multi-sim and two-sim
+  ([`ebd3e08`](https://github.com/Kitware/E3SMQuickCompare/commit/ebd3e08de6617e8ea10606e8faaf7aaec28f9b55))
+
+- Fix state file loading in file dialog
+  ([`42455ff`](https://github.com/Kitware/E3SMQuickCompare/commit/42455ffce19076f0f240b6b9703a427561ed5c39))
+
+- Fix state file loading lat/long / slices
+  ([`15d3802`](https://github.com/Kitware/E3SMQuickCompare/commit/15d38028199bcb2522858386d88f6ac0d1dcc7f9))
+
+- Fix variable order when loading from state
+  ([`aa40926`](https://github.com/Kitware/E3SMQuickCompare/commit/aa40926a41e72b7efd26b602acacb94cf1a8fdd4))
+
+- Update wording
+  ([`6121cf5`](https://github.com/Kitware/E3SMQuickCompare/commit/6121cf5ff1771327a0efb2b1b9c71e5435290e06))
+
+### Documentation
+
+- Update main README file
+  ([`8de8136`](https://github.com/Kitware/E3SMQuickCompare/commit/8de8136db1f4a3b5a03b5904fd4026d2b996c0a4))
+
+
 ## v1.8.3 (2026-06-22)
 
 ### Bug Fixes
