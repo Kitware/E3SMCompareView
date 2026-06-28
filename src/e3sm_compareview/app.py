@@ -182,13 +182,11 @@ class EAMApp(TrameApp):
             # Keyboard shortcut
             with tw.MouseTrap(
                 ResetCamera=self.view_manager.reset_camera,
-                SizeAuto=(self.view_manager.apply_size, "[0]"),
                 Size1=(self.view_manager.apply_size, "[1]"),
                 Size2=(self.view_manager.apply_size, "[2]"),
                 Size3=(self.view_manager.apply_size, "[3]"),
                 Size4=(self.view_manager.apply_size, "[4]"),
                 Size6=(self.view_manager.apply_size, "[6]"),
-                SizeFlow=(self.view_manager.apply_size, "['flow']"),
                 ToolbarLayout=(self.toggle_toolbar, "['adjust-layout']"),
                 ToolbarCrop=(self.toggle_toolbar, "['adjust-databounds']"),
                 ToolbarSelect=(self.toggle_toolbar, "['select-slice-time']"),
@@ -211,13 +209,11 @@ class EAMApp(TrameApp):
                 ZoomOut=(self.view_manager.guarded_zoom, "[1.2]"),
             ) as mt:
                 mt.bind(["z"], "ResetCamera")
-                mt.bind(["alt+0", "0"], "SizeAuto")
                 mt.bind(["alt+1", "1"], "Size1")
                 mt.bind(["alt+2", "2"], "Size2")
                 mt.bind(["alt+3", "3"], "Size3")
                 mt.bind(["alt+4", "4"], "Size4")
                 mt.bind(["alt+6", "6"], "Size6")
-                mt.bind(["="], "SizeFlow")
 
                 mt.bind("c", "ProjectionEquidistant")
                 mt.bind("r", "ProjectionRobinson")
