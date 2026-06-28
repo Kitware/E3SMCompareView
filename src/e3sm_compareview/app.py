@@ -858,10 +858,6 @@ class EAMApp(TrameApp):
         normalized = normalize_comparison_mode(comparison_mode)
         if normalized != comparison_mode:
             self.state.comparison_mode = normalized
-            return
-
-        self.state.variables_selected = []
-        self.state.variables_loaded = False
 
     @change("selected_columns")
     def _on_selected_columns_change(self, **_):
