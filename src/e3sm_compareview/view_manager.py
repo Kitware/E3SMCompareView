@@ -275,6 +275,27 @@ class ViewManager(TrameComponent):
                     if view is not None:
                         view.config.order = 0
 
+    def get_group_order(self, variables=None):
+        if variables is None:
+            variables = self._last_vars
+        if not variables:
+            return []
+
+        variable_names = []
+        for var_names in variables.values():
+            variable_names.extend(var_names)
+
+        fallback_order = len(variable_names) + 1
+        return sorted(
+            variable_names,
+            key=lambda var_name: self._group_orders.get(var_name, fallback_order),
+        )
+
+    def set_group_order(self, variable_names):
+        self._group_orders = {
+            var_name: index for index, var_name in enumerate(variable_names, start=1)
+        }
+
     def get_view(self, view_spec, variable_type):
         view_spec = self._resolve_view_spec(view_spec)
         array_name = view_spec["array_name"]

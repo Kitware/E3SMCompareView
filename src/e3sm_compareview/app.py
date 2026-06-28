@@ -457,12 +457,14 @@ class EAMApp(TrameApp):
             "simulations": self.state.simulation_configs,
         }
         state_content["variables-selection"] = self.state.variables_selected
-        state_content["layout"] = {
+        layout = {
             "aspect-ratio": self.state.aspect_ratio,
             "active": self.state.active_layout,
             "tools": self.state.active_tools,
             "help": not self.state.compact_drawer,
+            "variable-order": self.view_manager.get_group_order(active_variables),
         }
+        state_content["layout"] = layout
         data_selection = {
             k: self.state[k]
             for k in [
@@ -482,7 +484,7 @@ class EAMApp(TrameApp):
             data_selection[idx_key] = self.state[idx_key]
         state_content["data-selection"] = data_selection
 
-        views_to_export = state_content["views"] = []
+        saved_views = state_content["views"] = []
         for view_type, var_names in active_variables.items():
             for var_name in var_names:
                 for view_spec in self.source.data_reader.get_view_specs(
@@ -494,7 +496,7 @@ class EAMApp(TrameApp):
                     view = self.view_manager.get_view(view_spec, view_type)
                     config = view.config
                     cmap = view.colormap
-                    views_to_export.append(
+                    saved_views.append(
                         {
                             "type": view_type,
                             "name": var_name,
@@ -552,6 +554,8 @@ class EAMApp(TrameApp):
             self.file_browser.get("data_connectivity"),
         )
 
+        layout = state_content.get("layout", {})
+        saved_views = state_content.get("views", [])
         comparisons = state_content.get("comparisons", {})
         if comparisons:
             self.state.simulation_configs = comparisons.get(
@@ -582,6 +586,30 @@ class EAMApp(TrameApp):
         self.state.variables_selected = [
             var for var in saved_variables if var in valid_variables
         ]
+        variable_order = list(layout.get("variable-order") or [])
+        if not variable_order:
+            seen_variables = set()
+            for view_state in sorted(
+                saved_views,
+                key=lambda view_state: view_state.get("config", {}).get("order", 0),
+            ):
+                var_name = view_state["name"]
+                if var_name in seen_variables:
+                    continue
+                seen_variables.add(var_name)
+                variable_order.append(var_name)
+
+        variable_order = [
+            var_name
+            for var_name in variable_order
+            if var_name in self.state.variables_selected
+        ]
+        variable_order.extend(
+            var_name
+            for var_name in self.state.variables_selected
+            if var_name not in variable_order
+        )
+        self.view_manager.set_group_order(variable_order)
 
         data_selection = state_content.get("data-selection", {})
         for key in (
@@ -597,13 +625,14 @@ class EAMApp(TrameApp):
         await self._data_load_variables()
         self.state.variables_loaded = True
 
-        index_keys = {"time_idx", "midpoint_idx", "interface_idx"}
-        for track in self.state.available_animation_tracks:
-            index_keys.add(f"{track}_idx")
         with self.state:
-            for key in index_keys:
+            for key in ("time_idx", "midpoint_idx", "interface_idx"):
                 if key in data_selection:
                     self.state[key] = data_selection[key]
+            for track in self.state.available_animation_tracks:
+                idx_key = f"{track}_idx"
+                if idx_key in data_selection:
+                    self.state[idx_key] = data_selection[idx_key]
             if (
                 data_selection.get("animation_track")
                 in self.state.available_animation_tracks
@@ -635,7 +664,7 @@ class EAMApp(TrameApp):
             "color_value_min",
             "color_value_max",
         }
-        for view_state in state_content["views"]:
+        for view_state in saved_views:
             view_type = view_state["type"]
             var_name = view_state["name"]
             array_name = view_state.get("array_name", var_name)
@@ -658,14 +687,14 @@ class EAMApp(TrameApp):
             view.colormap.update(**cmap_cfg)
 
         # Update layout
-        self.state.aspect_ratio = state_content["layout"]["aspect-ratio"]
-        self.state.active_layout = state_content["layout"]["active"]
+        self.state.aspect_ratio = layout["aspect-ratio"]
+        self.state.active_layout = layout["active"]
         self.state.active_tools = [
             tool
-            for tool in state_content["layout"]["tools"]
+            for tool in layout["tools"]
             if tool != "comparison-controls"
         ]
-        self.state.compact_drawer = not state_content["layout"]["help"]
+        self.state.compact_drawer = not layout["help"]
 
         # Update filebrowser state
         with self.state:
