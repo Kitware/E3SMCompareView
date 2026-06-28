@@ -187,6 +187,9 @@ class ParaViewFileBrowser(TrameComponent):
             file = self._current_path / entry.get("name")
             file_name = file.name.lower()
             full_path = str(file)
+            if file.suffix == ".json" and self.get("is_state_file"):
+                self.update_listing(full_path)
+                return entry_type, full_path
             if "connectivity_" in file_name:
                 self.set("data_connectivity", full_path)
             else:
@@ -253,25 +256,29 @@ class ParaViewFileBrowser(TrameComponent):
         with self.state as state:
             state[f"{self._prefix}_active"] = entry.get("index", 0) if entry else -1
             file_path = Path(self.active_path)
+            self.set("selected", str(file_path) if file_path.exists() else None)
 
             # Check if it is a state file
             if file_path.suffix == ".json" and file_path.exists():
-                state_content = json.loads(file_path.read_text())
-                self.set(
-                    "is_state_file",
-                    all(
-                        (
-                            k in state_content
-                            for k in [
-                                "files",
-                                "variables-selection",
-                                "layout",
-                                "data-selection",
-                                "views",
-                            ]
-                        )
-                    ),
-                )
+                try:
+                    state_content = json.loads(file_path.read_text())
+                    self.set(
+                        "is_state_file",
+                        all(
+                            (
+                                k in state_content
+                                for k in [
+                                    "files",
+                                    "variables-selection",
+                                    "layout",
+                                    "data-selection",
+                                    "views",
+                                ]
+                            )
+                        ),
+                    )
+                except (OSError, json.JSONDecodeError):
+                    self.set("is_state_file", False)
             else:
                 self.set("is_state_file", False)
 
@@ -286,7 +293,8 @@ class ParaViewFileBrowser(TrameComponent):
     def import_state_file(self):
         self.set("state_loading", True)
 
-        state_content = json.loads(Path(self.active_path).read_text())
+        selected_path = self.get("selected") or self.active_path
+        state_content = json.loads(Path(selected_path).read_text())
         self.ctrl.import_state(state_content)
 
     def cancel(self):
