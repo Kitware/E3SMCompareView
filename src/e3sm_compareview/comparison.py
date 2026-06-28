@@ -7,8 +7,8 @@ DEFAULT_TWO_SIM_COLUMNS = ["ctrl", "test", "diff", "comp1"]
 COMPARISON_TYPE_LABELS = {
     "source": "Source",
     "diff": "Diff",
-    "comp1": "Rel Diff (w.r.t. ctrl)",
-    "comp2": "Rel Diff (w.r.t. mean)",
+    "comp1": "Rel Diff",
+    "comp2": "Sym Rel Diff",
 }
 MULTI_SIM_COMPARISON_LABELS = {
     **COMPARISON_TYPE_LABELS,
@@ -25,8 +25,8 @@ TWO_SIM_COLUMN_LABELS = {
 COMPARISON_TYPE_TITLE_SUFFIXES = {
     "source": "value",
     "diff": "diff",
-    "comp1": "rel diff w.r.t. ctrl",
-    "comp2": "rel diff w.r.t. mean",
+    "comp1": "rel diff",
+    "comp2": "sym rel diff",
 }
 
 
