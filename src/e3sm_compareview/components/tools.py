@@ -115,7 +115,7 @@ class Tools(v3.VNavigationDrawer):
                     qv_tools.Animation()
                     qv_tools.ToggleButton(
                         compact="compact_drawer",
-                        title="Simulation Controls",
+                        title="Comparison",
                         icon="mdi-database-cog-outline",
                         value="simulation-controls",
                     )

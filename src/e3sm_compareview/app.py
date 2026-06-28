@@ -191,12 +191,12 @@ class EAMApp(TrameApp):
                 ToolbarCrop=(self.toggle_toolbar, "['adjust-databounds']"),
                 ToolbarSelect=(self.toggle_toolbar, "['select-slice-time']"),
                 ToolbarAnimation=(self.toggle_toolbar, "['animation-controls']"),
+                ToolbarComparison=(self.toggle_toolbar, "['simulation-controls']"),
                 ToggleVariableSelection=(self.toggle_toolbar, "['select-fields']"),
                 RemoveAllToolbars=(self.toggle_toolbar),
                 ProjectionEquidistant="projection = ['Cyl. Equidistant']",
                 ProjectionRobinson="projection = ['Robinson']",
                 ProjectionMollweide="projection = ['Mollweide']",
-                ToggleViewLock="lock_views = !lock_views",
                 FileOpen=(self.toggle_toolbar, "['load-data']"),
                 SaveState="trigger('download_state_dialog')",
                 UploadState="utils.get('document').querySelector('#fileUpload').click()",
@@ -230,7 +230,7 @@ class EAMApp(TrameApp):
                 mt.bind("a", "ToolbarAnimation")
                 mt.bind("v", "ToggleVariableSelection")
 
-                mt.bind("space", "ToggleViewLock", stop_propagation=True)
+                mt.bind("space", "ToolbarComparison", stop_propagation=True)
 
                 mt.bind("esc", "RemoveAllToolbars")
 
