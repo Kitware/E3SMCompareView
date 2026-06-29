@@ -806,60 +806,6 @@ class Animation(v3.VToolbar):
                     click="if (animation_play && animation_direction === 'forward') { animation_play = false } else { animation_direction = 'forward'; animation_play = true }",
                     disabled=("animation_play && animation_direction === 'reverse'",),
                 )
-                v3.VDivider(vertical=True, classes="mx-2")
-
-                with v3.VIconBtn(
-                    classes="position-relative",
-                    flat=True,
-                    v_if=("animation_export", False),
-                    click="animation_export = false",
-                ):
-                    v3.VIcon("mdi-download-multiple-outline")
-                    v3.VProgressCircular(
-                        color="error",
-                        bg_color="white",
-                        width=2,
-                        size=28,
-                        indeterminate=True,
-                        classes="position-absolute",
-                    )
-                with v3.VMenu(
-                    v_else=True,
-                    close_on_content_click=False,
-                    v_model=("show_animation_export_menu", False),
-                ):
-                    with v3.Template(v_slot_activator="{ props }"):
-                        v3.VIconBtn(
-                            v_bind="props",
-                            v_tooltip_bottom="'Export animation (ZIP)'",
-                            icon="mdi-download-multiple-outline",
-                            flat=True,
-                            loading=("animation_export", False),
-                            disabled=(
-                                "capture_recording || !animation_track || animation_play || animation_export",
-                            ),
-                        )
-                    with v3.VList(
-                        density="compact",
-                        v_model_activated=("animation_export_fields", []),
-                        activatable=True,
-                        active_strategy="independent",
-                    ):
-                        v3.VListItem(title="Viewport", value=("false",))
-                        v3.VDivider()
-                        v3.VListItem(
-                            v_for="item in animation_export_items",
-                            key="item.value",
-                            title=("item.title",),
-                            value=("item.value",),
-                        )
-                        v3.VDivider()
-                        v3.VListItem(
-                            active=False,
-                            title="Export animation",
-                            value=("null",),
-                            click="utils.quickview.captureAnimation(animation_export_fields)",
-                        )
 
     @change("animation_track")
     def _on_animation_track_change(self, animation_track, **_):

@@ -64,6 +64,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build]
 include = [
   "/src/e3sm_compareview/**/*.py",
+  "/src/e3sm_compareview/module/**",
   "/src/e3sm_compareview/data/**",
   "/src/e3sm_compareview/assets/**",
   "/src/e3sm_compareview/jupyter/**",

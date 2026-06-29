@@ -126,6 +126,10 @@ class Tools(v3.VNavigationDrawer):
                     qv_tools.MapProjection()
                     qv_tools.Cropping()
 
+                    v3.VDivider(classes="my-1")
+
+                    qv_tools.CaptureFullPanel(click="utils.quickview.capturePanel()")
+
                     if self.server.hot_reload:
                         v3.VDivider(classes="my-1")
                         qv_tools.ActionButton(

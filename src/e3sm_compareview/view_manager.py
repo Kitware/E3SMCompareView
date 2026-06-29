@@ -695,30 +695,40 @@ class ViewManager(TrameComponent):
                         variant="flat",
                         border_color=border_color,
                         key=f"group-{var_name}",
+                        raw_attrs=[f'data-variable-group="{var_name}"'],
                     ):
-                        with html.Div(
-                            var_name,
-                            classes=(
-                                "text-subtitle-2 "
-                                "font-weight-medium mb-1 d-inline-block"
-                            ),
-                            style="user-select: none; cursor: pointer;",
-                        ):
-                            with v3.VMenu(activator="parent"):
-                                with v3.VList(
-                                    density="compact",
-                                    style="max-height: 40vh;",
-                                ):
-                                    for swap_name in group_names:
-                                        if swap_name == var_name:
-                                            continue
-                                        v3.VListItem(
-                                            title=swap_name,
-                                            click=(
-                                                self.ctrl.swap_variable_groups,
-                                                f"['{var_name}', '{swap_name}']",
-                                            ),
-                                        )
+                        with html.Div(classes="d-flex align-center mb-1 ga-1"):
+                            with html.Div(
+                                var_name,
+                                classes=(
+                                    "text-subtitle-2 "
+                                    "font-weight-medium d-inline-block"
+                                ),
+                                style="user-select: none; cursor: pointer;",
+                            ):
+                                with v3.VMenu(activator="parent"):
+                                    with v3.VList(
+                                        density="compact",
+                                        style="max-height: 40vh;",
+                                    ):
+                                        for swap_name in group_names:
+                                            if swap_name == var_name:
+                                                continue
+                                            v3.VListItem(
+                                                title=swap_name,
+                                                click=(
+                                                    self.ctrl.swap_variable_groups,
+                                                    f"['{var_name}', '{swap_name}']",
+                                                ),
+                                            )
+                            v3.VIconBtn(
+                                v_tooltip_bottom="'Capture group as png'",
+                                icon="mdi-camera-outline",
+                                size="small",
+                                variant="plain",
+                                click=f"utils.quickcompare.captureGroup('{var_name}')",
+                                style="transform: scale(0.75);",
+                            )
                         with v3.VRow(dense=True):
                             use_config_size = (
                                 self.state.comparison_mode == "multi-sim"

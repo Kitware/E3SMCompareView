@@ -5,6 +5,7 @@ import os
 import time
 from pathlib import Path
 
+from e3sm_compareview import module as qc_module
 from e3sm_quickview import module as qv_module
 from e3sm_quickview.components import css
 from e3sm_quickview.utils import cli, compute
@@ -51,6 +52,7 @@ class EAMApp(TrameApp):
 
         # Pre-load deferred widgets
         dataclass.initialize(self.server)
+        self.server.enable_module(qc_module)
         self.server.enable_module(qv_module)
 
         # CLI
