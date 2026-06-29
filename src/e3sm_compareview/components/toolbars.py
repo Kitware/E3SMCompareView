@@ -580,7 +580,7 @@ class SimulationControls(v3.VToolbar):
                                     classes="text-caption mr-4",
                                 )
                             html.Div(
-                                "{{ (() => { if (!simulation_configs.length) return 'Loaded simulations:\\nnone'; return `Loaded simulations:\\n${simulation_configs.map(sim => `${sim.label || sim.path.split('/').pop()}${sim.path === control_simulation_file ? ' (ctrl)' : ''}`).join('\\n')}`; })() }}",
+                                "{{ utils.quickcompare.loadedSimulationsText(simulation_configs, control_simulation_file) }}",
                                 style="white-space: pre-line;",
                             )
                         v3.VBtn(
@@ -646,11 +646,7 @@ class SimulationControls(v3.VToolbar):
                                         with v3.VCol(cols=12, md=6):
                                             v3.VTextField(
                                                 model_value=("entry.label",),
-                                                update_modelValue="""
-simulation_configs = simulation_configs.map((sim) =>
-  sim.path === entry.path ? ({ ...sim, label: $event }) : sim
-);
-""",
+                                                update_modelValue="utils.quickcompare.setSimulationLabel(entry.path, $event)",
                                                 label="Label",
                                                 density="compact",
                                                 variant="outlined",
@@ -696,11 +692,7 @@ simulation_configs = simulation_configs.map((sim) =>
                                                         model_value=(
                                                             "control_simulation_file === entry.path ? true : entry.include",
                                                         ),
-                                                        update_modelValue="""
-simulation_configs = simulation_configs.map((sim) =>
-  sim.path === entry.path ? ({ ...sim, include: !!$event }) : sim
-);
-""",
+                                                        update_modelValue="utils.quickcompare.setSimulationInclude(entry.path, $event)",
                                                         label="Include",
                                                         density="compact",
                                                         hide_details=True,

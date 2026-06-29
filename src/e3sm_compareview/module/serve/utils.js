@@ -1,14 +1,17 @@
 (() => {
   const isQuickCompareTauri = !!window.__TAURI__;
 
+  function fileLabel(entry) {
+    return entry.label || entry.path.split("/").pop();
+  }
+
   function getGroupFileName(groupName) {
-    const state = trame.state.state;
     const nameTokens = [groupName];
 
-    state.available_animation_tracks.forEach((name) => {
+    trame.state.state.available_animation_tracks.forEach((name) => {
       nameTokens.push(name);
-      const nDigit = Math.floor(Math.log10(state[name].length) + 1);
-      const idx = state[`${name}_idx`];
+      const nDigit = Math.floor(Math.log10(trame.state.state[name].length) + 1);
+      const idx = trame.state.state[`${name}_idx`];
       nameTokens.push(String(idx).padStart(nDigit, "0"));
     });
 
@@ -55,11 +58,49 @@
     downloadURL(dataURL, fileName);
   }
 
+
+  function setSimulationLabel(path, label) {
+    trame.state.set(
+      "simulation_configs",
+      trame.state.state.simulation_configs.map((sim) =>
+        sim.path === path ? { ...sim, label } : sim,
+      ),
+    );
+  }
+
+  function setSimulationInclude(path, include) {
+    trame.state.set(
+      "simulation_configs",
+      trame.state.state.simulation_configs.map((sim) =>
+        sim.path === path ? { ...sim, include: !!include } : sim,
+      ),
+    );
+  }
+
+  function loadedSimulationsText(simulationConfigs, controlPath) {
+    if (!simulationConfigs?.length) {
+      return "Loaded simulations:\nnone";
+    }
+
+    const lines = simulationConfigs.map((sim) => {
+      const suffix = sim.path === controlPath ? " (ctrl)" : "";
+      return `${fileLabel(sim)}${suffix}`;
+    });
+
+    return `Loaded simulations:\n${lines.join("\n")}`;
+  }
+
   window.trame = window.trame || {};
   window.trame.utils = window.trame.utils || {};
-  window.trame.utils.quickcompare = {
-    async captureGroup(groupName) {
-      await captureTarget(findGroupToCapture(groupName), getGroupFileName(groupName));
+  const quickcompare = window.trame.utils.quickcompare || {};
+
+  Object.assign(quickcompare, {
+    captureGroup(groupName) {
+      return captureTarget(findGroupToCapture(groupName), getGroupFileName(groupName));
     },
-  };
+    setSimulationLabel,
+    setSimulationInclude,
+    loadedSimulationsText,
+  });
+  window.trame.utils.quickcompare = quickcompare;
 })();
