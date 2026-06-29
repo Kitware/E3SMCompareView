@@ -682,6 +682,8 @@ class EAMApp(TrameApp):
             if not cmap_cfg:  # Backward compatibility
                 cmap_cfg = {k: cfg.pop(k) for k in list(cfg) if k in _COLORMAP_KEYS}
 
+            cmap_cfg["color_range"] = tuple(cmap_cfg["color_range"])
+
             # Apply state
             view.config.update(**cfg)
             view.colormap.update(**cmap_cfg)
