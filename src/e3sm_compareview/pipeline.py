@@ -404,7 +404,7 @@ class DataReader:
         slicing_state = json.dumps(self.slicing)
         for reader in self.data_readers:
             reader.Slicing = slicing_state
-            reader.Variables = self.loaded_variables
+            reader.Variables = list(set([*self.loaded_variables, "lat", "lon"]))
 
     def _update_varmeta(self):
         reader_varmeta = []
@@ -491,6 +491,14 @@ for var in vars:
 area_np = _to_float_array(inputs[0].CellData["area"])
 if area_np is not None:
     output.CellData.append(area_np, 'area') # needed for utils.compute.extract_avgs
+
+lat_np = _to_float_array(inputs[0].CellData["lat"])
+if lat_np is not None:
+    output.CellData.append(lat_np, "lat")
+
+lon_np = _to_float_array(inputs[0].CellData["lon"])
+if lon_np is not None:
+    output.CellData.append(lon_np, "lon")
 """
 
     def _build_view_specs(self, variables):
@@ -768,7 +776,7 @@ if area_np is not None:
             return
         self.loaded_variables = list(variables)
         for reader in self.data_readers:
-            reader.Variables = variables
+            reader.Variables = list(set([*variables, "lat", "lon"]))
 
     def get_output_dataset(self):
         vtk_geometry = self.vtk_geometry

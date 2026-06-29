@@ -379,6 +379,21 @@ class VariableView(TrameComponent):
         return self._get_multi_sim_default_range()
 
     def _build_ui(self):
+        probe_value_spec = None
+        if (
+            self.comparison_mode == "multi-sim"
+            and self.comparison_type != "source"
+            and self.role != "control"
+        ):
+            for source_spec in self.source.data_reader.get_view_specs(
+                self.base_variable,
+                "multi-sim",
+                "source",
+            ):
+                if source_spec.get("path") == self.view_spec.get("path"):
+                    probe_value_spec = source_spec
+                    break
+
         with DivLayout(
             self.server, template_name=self.name, connect_parent=False, classes="h-100"
         ) as self.ui:
@@ -390,6 +405,8 @@ class VariableView(TrameComponent):
                 ),
                 tile=("active_layout !== 'auto_layout'",),
                 raw_attrs=[f'data-field-name="{self.array_name}"'],
+                v_on_mouseenter=f"hover_info = '{self.array_name}'",
+                v_on_mouseleave="hover_info = null; hover_tooltip = null",
             ):
                 with v3.VRow(
                     dense=True,
@@ -424,6 +441,31 @@ class VariableView(TrameComponent):
                         v_show=("lock_views", False),
                         style="transform: scale(0.75);",
                     )
+                    self.state.setdefault("picking_mode", None)
+                    v3.VIconBtn(
+                        v_tooltip_bottom="'Extract information on click'",
+                        icon="mdi-cursor-default-click-outline",
+                        size="small",
+                        base_variant="plain",
+                        active_variant="tonal",
+                        click="picking_mode = (picking_mode === 'click' ? null : 'click')",
+                        active=("picking_mode === 'click'",),
+                        active_color="primary",
+                        hide_overlay=True,
+                        rounded=False,
+                    )
+                    v3.VIconBtn(
+                        v_tooltip_bottom="'Extract information on hover'",
+                        icon="mdi-cursor-default-gesture-outline",
+                        size="small",
+                        base_variant="plain",
+                        active_variant="tonal",
+                        click="picking_mode = (picking_mode === 'hover' ? null : 'hover')",
+                        active=("picking_mode === 'hover'",),
+                        active_color="primary",
+                        hide_overlay=True,
+                        rounded=False,
+                    )
 
                     v3.VSpacer()
                     html.Div(
@@ -454,22 +496,69 @@ class VariableView(TrameComponent):
                             classes="text-caption px-1 text-no-wrap",
                         )
 
-                with html.Div(
-                    style=(
-                        """
-                        {
-                            aspectRatio: active_layout === 'auto_layout' ? 1/aspect_ratio : null,
-                            height: active_layout !== 'auto_layout' ? 'calc(100% - 2.4rem)' : null,
-                            pointerEvents: 'none',
-                        }
-                        """,
+                with v3.VTooltip(
+                    classes="tooltip-no-padding",
+                    disabled=(
+                        f"!picking_mode || hover_info !== '{self.array_name}'",
+                    ),
+                    open_on_hover=False,
+                    model_value=(
+                        f"picking_mode && !!hover_tooltip && hover_info === '{self.array_name}'",
                     ),
                 ):
-                    rca.ImageRegion(
-                        enable_interaction=False,
-                        bounds=(self._bounds_key, (0, 0, 1, 1)),
-                        size=(self.update_size, "[$event]"),
-                    )
+                    with v3.Template(v_slot_activator="{props}"):
+                        with html.Div(
+                            v_bind="props",
+                            style=(
+                                """
+                                {
+                                    aspectRatio: active_layout === 'auto_layout' ? 1/aspect_ratio : null,
+                                    height: active_layout !== 'auto_layout' ? 'calc(100% - 2.4rem)' : null,
+                                }
+                                """,
+                            ),
+                        ):
+                            rca.ImageRegion(
+                                enable_interaction=False,
+                                bounds=(self._bounds_key, (0, 0, 1, 1)),
+                                size=(self.update_size, "[$event]"),
+                                send_mouse_click=(
+                                    f"picking_mode === 'click' && hover_info === '{self.array_name}'",
+                                ),
+                                send_mouse_move=(
+                                    f"picking_mode === 'hover' && hover_info === '{self.array_name}'",
+                                ),
+                                v_on_wheel="window.scrollBy(0, $event.deltaY)",
+                            )
+
+                    with v3.VTable(density="compact", theme="dark", striped="even"):
+                        with html.Tbody(v_if="picking_mode && !!hover_tooltip"):
+                            with html.Tr():
+                                with html.Td():
+                                    v3.VIcon("mdi-target")
+                                with html.Td(
+                                    classes="d-flex justify-space-between align-center",
+                                ):
+                                    html.Div(
+                                        "lat: {{hover_tooltip?.lat?.[0]?.toFixed(4)}}",
+                                        classes="pr-4",
+                                    )
+                                    html.Div(
+                                        "lon: {{hover_tooltip?.lon?.[0]?.toFixed(4)}}",
+                                    )
+
+                            with self.config.provide_as("config"):
+                                with html.Tr():
+                                    html.Td("{{ config.label }}")
+                                    html.Td(
+                                        f"{{{{hover_tooltip?.['{self.array_name}']?.[0]}}}}"
+                                    )
+                            if probe_value_spec is not None:
+                                with html.Tr():
+                                    html.Td(probe_value_spec["label"])
+                                    html.Td(
+                                        f"{{{{hover_tooltip?.['{probe_value_spec['array_name']}']?.[0]}}}}"
+                                    )
 
                 with self.colormap.provide_as(self.name):
                     colormaps.HorizontalScalarBar(self.name, popup_location="top")

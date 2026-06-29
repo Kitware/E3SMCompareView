@@ -20,7 +20,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "e3sm-quickview>=2.7.7",
+    "e3sm-quickview>=2.8.4",
     "trame-colormaps>=1.4.2",
 ]
 

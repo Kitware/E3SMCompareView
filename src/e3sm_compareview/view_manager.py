@@ -6,6 +6,7 @@ from paraview.modules.vtkPVVTKExtensionsInteractionStyle import (
     vtkPVTrackballZoom,
     vtkTrackballPan,
 )
+from e3sm_quickview.utils import debounce
 from trame.app import TrameComponent
 from trame.decorators import controller
 from trame.ui.html import DivLayout
@@ -13,6 +14,7 @@ from trame.widgets import client, colormaps, html, rca
 from trame.widgets import vuetify3 as v3
 from vtkmodules.vtkRenderingCore import (
     vtkCamera,
+    vtkCellPicker,
     vtkRenderWindow,
     vtkRenderWindowInteractor,
 )
@@ -55,6 +57,7 @@ class ViewManager(TrameComponent):
         self._camera = vtkCamera(parallel_projection=1)
         self._render_window = vtkRenderWindow()
         self._render_window.OffScreenRenderingOn()
+        self._picker = vtkCellPicker(tolerance=0.0005)
         self._style = vtkPVInteractorStyle()
         self._style.AddManipulator(
             vtkPVTrackballZoom(
@@ -95,9 +98,46 @@ class ViewManager(TrameComponent):
         rca.initialize(self.server)
         colormaps.initialize(self.server)
 
+        self.state.hover_info = None
+        self.state.hover_tooltip = None
+
+        self.ctrl.on_server_ready.add(self._post_init)
+
     def refresh_ui(self, **_):
         for view in self._var2view.values():
             view._build_ui()
+
+    def _post_init(self, *_, **__):
+        self._render_window_interactor.AddObserver("ModifiedEvent", self._on_hover)
+
+    @debounce.debounce(0.2)
+    def _on_hover(self, *_):
+        with self.state:
+            if not self.state.hover_info:
+                self.state.hover_tooltip = None
+                return
+
+            view = self._var2view.get(self.state.hover_info)
+            if view is None:
+                self.state.hover_tooltip = None
+                return
+
+            x, y = self._render_window_interactor.GetEventPosition()
+            self._picker.Pick(x, y, 0, view.renderer)
+            if self._picker.cell_id < 0:
+                self.state.hover_tooltip = None
+                return
+
+            cell_id = self._picker.cell_id
+            data_info = {}
+            dataset = self._picker.GetDataSet()
+            if dataset:
+                cell_data = dataset.cell_data
+                for index in range(cell_data.number_of_arrays):
+                    array = cell_data.GetArray(index)
+                    data_info[array.name] = array.GetTuple(cell_id)
+
+            self.state.hover_tooltip = data_info
 
     def _active_views(self):
         if self._active_configs:
