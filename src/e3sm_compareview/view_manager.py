@@ -1,6 +1,7 @@
 import asyncio
 import math
 
+from e3sm_compareview.comparison import MULTI_SIM_COMPARISON_LABELS
 from paraview.modules.vtkPVVTKExtensionsInteractionStyle import (
     vtkPVInteractorStyle,
     vtkPVTrackballZoom,
@@ -99,7 +100,7 @@ class ViewManager(TrameComponent):
         colormaps.initialize(self.server)
 
         self.state.hover_info = None
-        self.state.hover_tooltip = None
+        self.state.probe_table = None
 
         self.ctrl.on_server_ready.add(self._post_init)
 
@@ -114,18 +115,18 @@ class ViewManager(TrameComponent):
     def _on_hover(self, *_):
         with self.state:
             if not self.state.hover_info:
-                self.state.hover_tooltip = None
+                self.state.probe_table = None
                 return
 
             view = self._var2view.get(self.state.hover_info)
             if view is None:
-                self.state.hover_tooltip = None
+                self.state.probe_table = None
                 return
 
             x, y = self._render_window_interactor.GetEventPosition()
             self._picker.Pick(x, y, 0, view.renderer)
             if self._picker.cell_id < 0:
-                self.state.hover_tooltip = None
+                self.state.probe_table = None
                 return
 
             cell_id = self._picker.cell_id
@@ -137,7 +138,77 @@ class ViewManager(TrameComponent):
                     array = cell_data.GetArray(index)
                     data_info[array.name] = array.GetTuple(cell_id)
 
-            self.state.hover_tooltip = data_info
+            def picked_value(array_name):
+                values = data_info.get(array_name)
+                if not values:
+                    return None
+                value = values[0]
+                try:
+                    value = float(value)
+                except (TypeError, ValueError):
+                    return str(value)
+                if math.isnan(value):
+                    return None
+                return f"{value:.6g}"
+
+            active_variable = view.base_variable
+            view_specs = self.get_view_specs(active_variable)
+            if not view_specs:
+                self.state.probe_table = None
+                return
+
+            source_specs_by_path = {}
+            if self.state.comparison_mode == "multi-sim":
+                source_specs_by_path = {
+                    spec.get("path"): spec
+                    for spec in self.source.data_reader.get_view_specs(
+                        active_variable,
+                        "multi-sim",
+                        "source",
+                    )
+                }
+
+            rows = []
+            for row_spec in view_specs:
+                row_label = row_spec.get("label", row_spec["array_name"])
+                if self.state.comparison_mode == "multi-sim":
+                    row_label = row_label.rsplit(" (", 1)[0]
+                    if row_spec.get("role") == "control":
+                        row_label = f"{row_label} (ctrl)"
+
+                row = {
+                    "key": row_spec["array_name"],
+                    "label": row_label,
+                    "active": row_spec["array_name"] == self.state.hover_info,
+                    "display": picked_value(row_spec["array_name"]),
+                    "source_label": None,
+                    "source_display": None,
+                }
+
+                if (
+                    self.state.comparison_mode == "multi-sim"
+                    and self.state.comparison_type != "source"
+                    and row_spec.get("role") != "control"
+                ):
+                    source_spec = source_specs_by_path.get(row_spec.get("path"))
+                    if source_spec is not None:
+                        row["source_label"] = source_spec.get("label")
+                        row["source_display"] = picked_value(
+                            source_spec["array_name"]
+                        )
+
+                rows.append(row)
+
+            self.state.probe_table = {
+                "lat": data_info.get("lat", [None])[0],
+                "lon": data_info.get("lon", [None])[0],
+                "column_label": (
+                    f"{active_variable} ({MULTI_SIM_COMPARISON_LABELS.get(view.comparison_type, view.comparison_type)})"
+                    if self.state.comparison_mode == "multi-sim"
+                    else active_variable
+                ),
+                "rows": rows,
+            }
 
     def _active_views(self):
         if self._active_configs:

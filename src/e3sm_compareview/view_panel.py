@@ -379,21 +379,6 @@ class VariableView(TrameComponent):
         return self._get_multi_sim_default_range()
 
     def _build_ui(self):
-        probe_value_spec = None
-        if (
-            self.comparison_mode == "multi-sim"
-            and self.comparison_type != "source"
-            and self.role != "control"
-        ):
-            for source_spec in self.source.data_reader.get_view_specs(
-                self.base_variable,
-                "multi-sim",
-                "source",
-            ):
-                if source_spec.get("path") == self.view_spec.get("path"):
-                    probe_value_spec = source_spec
-                    break
-
         with DivLayout(
             self.server, template_name=self.name, connect_parent=False, classes="h-100"
         ) as self.ui:
@@ -406,7 +391,7 @@ class VariableView(TrameComponent):
                 tile=("active_layout !== 'auto_layout'",),
                 raw_attrs=[f'data-field-name="{self.array_name}"'],
                 v_on_mouseenter=f"hover_info = '{self.array_name}'",
-                v_on_mouseleave="hover_info = null; hover_tooltip = null",
+                v_on_mouseleave="hover_info = null; probe_table = null",
             ):
                 with v3.VRow(
                     dense=True,
@@ -511,7 +496,7 @@ class VariableView(TrameComponent):
                     ),
                     open_on_hover=False,
                     model_value=(
-                        f"picking_mode && !!hover_tooltip && hover_info === '{self.array_name}'",
+                        f"picking_mode && !!probe_table && hover_info === '{self.array_name}'",
                     ),
                 ):
                     with v3.Template(v_slot_activator="{props}"):
@@ -539,34 +524,77 @@ class VariableView(TrameComponent):
                                 v_on_wheel="window.scrollBy(0, $event.deltaY)",
                             )
 
-                    with v3.VTable(density="compact", theme="dark", striped="even"):
-                        with html.Tbody(v_if="picking_mode && !!hover_tooltip"):
-                            with html.Tr():
-                                with html.Td():
-                                    v3.VIcon("mdi-target")
-                                with html.Td(
-                                    classes="d-flex justify-space-between align-center",
-                                ):
-                                    html.Div(
-                                        "lat: {{hover_tooltip?.lat?.[0]?.toFixed(4)}}",
-                                        classes="pr-4",
-                                    )
-                                    html.Div(
-                                        "lon: {{hover_tooltip?.lon?.[0]?.toFixed(4)}}",
+                    with html.Div(
+                        v_if="picking_mode && !!probe_table",
+                        classes="px-3 pt-2 pb-1 d-flex align-center text-caption",
+                    ):
+                        v3.VIcon("mdi-target", size="small", classes="mr-2")
+                        html.Div(
+                            "lat: {{ probe_table.lat == null ? 'N/A' : probe_table.lat.toFixed(4) }}",
+                            classes="pr-4",
+                        )
+                        html.Div(
+                            "lon: {{ probe_table.lon == null ? 'N/A' : probe_table.lon.toFixed(4) }}",
+                        )
+
+                    with html.Div(
+                        v_if="picking_mode && !!probe_table",
+                        style="max-width: 72vw; overflow-x: auto;",
+                    ):
+                        with v3.VTable(
+                            density="compact",
+                            theme="dark",
+                            classes="text-no-wrap",
+                        ):
+                            with html.Tbody():
+                                with html.Tr():
+                                    html.Td("Simulation", classes="font-weight-bold")
+                                    html.Td(
+                                        "{{ probe_table.column_label }}",
+                                        classes="font-weight-bold text-blue-lighten-3",
                                     )
 
-                            with self.config.provide_as("config"):
-                                with html.Tr():
-                                    html.Td("{{ config.label }}")
+                                with html.Tr(
+                                    v_for="row in probe_table.rows",
+                                    key="row.key",
+                                ):
                                     html.Td(
-                                        f"{{{{hover_tooltip?.['{self.array_name}']?.[0]}}}}"
+                                        "{{ row.label }}",
+                                        style=(
+                                            """
+                                            {
+                                                fontWeight: row.active ? 700 : null,
+                                                color: row.active ? '#90caf9' : null,
+                                            }
+                                            """,
+                                        ),
                                     )
-                            if probe_value_spec is not None:
-                                with html.Tr():
-                                    html.Td(probe_value_spec["label"])
-                                    html.Td(
-                                        f"{{{{hover_tooltip?.['{probe_value_spec['array_name']}']?.[0]}}}}"
-                                    )
+                                    with html.Td(
+                                        style=(
+                                            """
+                                            {
+                                                backgroundColor: row.active ? '#1e3a8a' : null,
+                                                border: row.active ? '1px solid #90caf9' : null,
+                                            }
+                                            """,
+                                        ),
+                                    ):
+                                        html.Div(
+                                            "{{ row.display || 'N/A' }}",
+                                            style=(
+                                                """
+                                                {
+                                                    fontWeight: row.active ? 700 : null,
+                                                    color: row.active ? '#ffffff' : null,
+                                                }
+                                                """,
+                                            ),
+                                        )
+                                        html.Div(
+                                            "{{ row.source_label }}: {{ row.source_display || 'N/A' }}",
+                                            v_if="row.source_label",
+                                            classes="text-caption text-medium-emphasis",
+                                        )
 
                 with self.colormap.provide_as(self.name):
                     colormaps.HorizontalScalarBar(self.name, popup_location="top")
