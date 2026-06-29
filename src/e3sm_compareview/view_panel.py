@@ -441,6 +441,14 @@ class VariableView(TrameComponent):
                         v_show=("lock_views", False),
                         style="transform: scale(0.75);",
                     )
+                    v3.VIconBtn(
+                        v_tooltip_bottom="'Capture as png'",
+                        icon="mdi-camera-outline",
+                        size="small",
+                        variant="plain",
+                        click=f"utils.quickview.capturePanel('{self.array_name}')",
+                        style="transform: scale(0.75);",
+                    )
                     self.state.setdefault("picking_mode", None)
                     v3.VIconBtn(
                         v_tooltip_bottom="'Extract information on click'",
