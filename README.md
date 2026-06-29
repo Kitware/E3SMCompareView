@@ -4,7 +4,7 @@
 [![Release](https://github.com/Kitware/E3SMQuickCompare/actions/workflows/release.yml/badge.svg)](https://github.com/Kitware/E3SMQuickCompare/actions/workflows/release.yml)
 [![Package](https://github.com/Kitware/E3SMQuickCompare/actions/workflows/package.yml/badge.svg)](https://github.com/Kitware/E3SMQuickCompare/actions/workflows/package.yml)
 ![PyPI](https://img.shields.io/pypi/v/e3sm-compareview?label=pypi%20package)
-[![Conda Version](https://img.shields.io/conda/vn/conda-forge/e3sm-compareview.svg)](https://anaconda.org/conda-forge/e3sm-compareview)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/e3sm_compareview.svg)](https://anaconda.org/conda-forge/e3sm_compareview)
 
 **QuickCompare**
 is an offshoot of [QuickView](https://kitware.github.io/QuickView/guides/quickview/),
