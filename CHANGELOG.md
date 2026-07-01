@@ -2,6 +2,38 @@
 
 <!-- version list -->
 
+## v1.9.0 (2026-07-01)
+
+### Bug Fixes
+
+- Fix warning when loading state files
+  ([`9025dbb`](https://github.com/Kitware/E3SMQuickCompare/commit/9025dbbc72d98b92ce4dd66a1c345f74a174467f))
+
+### Documentation
+
+- Correct url for conda package in README.md
+  ([`27087d8`](https://github.com/Kitware/E3SMQuickCompare/commit/27087d8eae5dea7ba8168bfc68aec3e95fa801df))
+
+### Features
+
+- Add data probe from QuickView
+  ([`0377820`](https://github.com/Kitware/E3SMQuickCompare/commit/03778203bc3a1760f38dbe1383eccd52805b4edc))
+
+- Add screenshot button from QuickView
+  ([`4ce4301`](https://github.com/Kitware/E3SMQuickCompare/commit/4ce43017521c0df95ee76d946d12d4ef0874a03b))
+
+- Add screenshot buttons for groups/viewport
+  ([`4f8384a`](https://github.com/Kitware/E3SMQuickCompare/commit/4f8384a0a43dbe1b5d004b03d5cf7ebb6df4275e))
+
+- Make data probe display table of values
+  ([`cd68268`](https://github.com/Kitware/E3SMQuickCompare/commit/cd682680cde5c90a16d75e438bb09780a6c6ef8b))
+
+### Refactoring
+
+- Move inlined js into utils.js
+  ([`dff2012`](https://github.com/Kitware/E3SMQuickCompare/commit/dff20127472254f160392dc66ac91f8ecc6c07eb))
+
+
 ## v1.8.4 (2026-06-28)
 
 ### Bug Fixes
