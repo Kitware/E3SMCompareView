@@ -591,8 +591,8 @@ class VariableView(TrameComponent):
                                             ),
                                         )
                                         html.Div(
-                                            "{{ row.source_label }}: {{ row.source_display || 'N/A' }}",
-                                            v_if="row.source_label",
+                                            "(value: {{ row.source_display || 'N/A' }})",
+                                            v_if="row.has_source",
                                             classes="text-caption text-medium-emphasis",
                                         )
 

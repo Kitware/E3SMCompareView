@@ -176,23 +176,31 @@ class ViewManager(TrameComponent):
                     if row_spec.get("role") == "control":
                         row_label = f"{row_label} (ctrl)"
 
+                if (
+                    row_spec.get("role") == "control"
+                    and self.state.comparison_mode == "multi-sim"
+                    and self.state.comparison_type in ("diff", "comp1", "comp2")
+                ):
+                    display = "0"
+                else:
+                    display = picked_value(row_spec["array_name"])
+
                 row = {
                     "key": row_spec["array_name"],
                     "label": row_label,
                     "active": row_spec["array_name"] == self.state.hover_info,
-                    "display": picked_value(row_spec["array_name"]),
-                    "source_label": None,
+                    "display": display,
+                    "has_source": False,
                     "source_display": None,
                 }
 
                 if (
                     self.state.comparison_mode == "multi-sim"
                     and self.state.comparison_type != "source"
-                    and row_spec.get("role") != "control"
                 ):
                     source_spec = source_specs_by_path.get(row_spec.get("path"))
                     if source_spec is not None:
-                        row["source_label"] = source_spec.get("label")
+                        row["has_source"] = True
                         row["source_display"] = picked_value(
                             source_spec["array_name"]
                         )
@@ -203,7 +211,7 @@ class ViewManager(TrameComponent):
                 "lat": data_info.get("lat", [None])[0],
                 "lon": data_info.get("lon", [None])[0],
                 "column_label": (
-                    f"{active_variable} ({MULTI_SIM_COMPARISON_LABELS.get(view.comparison_type, view.comparison_type)})"
+                    f"{active_variable} {MULTI_SIM_COMPARISON_LABELS.get(view.comparison_type, view.comparison_type)}"
                     if self.state.comparison_mode == "multi-sim"
                     else active_variable
                 ),
