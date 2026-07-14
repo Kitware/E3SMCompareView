@@ -95,6 +95,7 @@ class ViewManager(TrameComponent):
         self._last_vars = {}
         self._active_configs = {}
         self._group_orders = {}
+        self._n_cols = None
 
         rca.initialize(self.server)
         colormaps.initialize(self.server)
@@ -628,9 +629,13 @@ class ViewManager(TrameComponent):
             self.render()
 
     def apply_size(self, n_cols):
+        self._n_cols = n_cols
         if not self._last_vars:
             return
 
+        self._apply_col_size(n_cols)
+
+    def _apply_col_size(self, n_cols):
         if n_cols == 0:
             # Auto size views based on the number of comparison panels being shown.
             for var_type, var_names in self._last_vars.items():
@@ -822,6 +827,9 @@ class ViewManager(TrameComponent):
                 config.order = next_order_idx
                 self._active_configs[view_spec["array_name"]] = config
                 next_order_idx += 1
+
+        if self._n_cols is not None:
+            self._apply_col_size(self._n_cols)
 
         self.layout_dirty = True
         self.compute_layout()
