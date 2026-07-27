@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v1.9.1 (2026-07-27)
+
+### Bug Fixes
+
+- Change tauri splash to "QuickCompare"
+  ([`b5d4cde`](https://github.com/Kitware/E3SMQuickCompare/commit/b5d4cde53c3dc09df15ef9a3ea9c9d3d31c1897c))
+
+- Make sure col # is consistent when changing comp. type
+  ([`7e0cfea`](https://github.com/Kitware/E3SMQuickCompare/commit/7e0cfeae155b6ca8c420c27ed47b704d126e1db9))
+
+
 ## v1.9.0 (2026-07-01)
 
 ### Bug Fixes
