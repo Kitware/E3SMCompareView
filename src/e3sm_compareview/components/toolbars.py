@@ -35,6 +35,11 @@ def to_kwargs(value):
     }
 
 
+def reload(m=None):
+    if m:
+        m.__loader__.exec_module(m)
+
+
 class Layout(v3.VToolbar):
     def __init__(self, apply_size=None, zoom=None, pan=None, reset_camera=None):
         super().__init__(**to_kwargs("adjust-layout"))
