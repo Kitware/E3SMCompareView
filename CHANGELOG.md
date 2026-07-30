@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v1.9.2 (2026-07-30)
+
+### Bug Fixes
+
+- **quickview**: Update API call to handle latest quickview
+  ([`bf326b3`](https://github.com/Kitware/E3SMQuickCompare/commit/bf326b34a6f6cdd9496239284bdca411acc081f2))
+
+- **toolbar**: Clean ui
+  ([`0d3c27a`](https://github.com/Kitware/E3SMQuickCompare/commit/0d3c27a20dc436b29f3855b234ec9ccfb88c76c2))
+
+### Chores
+
+- **dev**: Add hot-reload for toolbar
+  ([`fff6e2b`](https://github.com/Kitware/E3SMQuickCompare/commit/fff6e2bfd9860e973352389163c4bf1a189bc0ea))
+
+### Code Style
+
+- **ruff**: Code reformating
+  ([`77f729c`](https://github.com/Kitware/E3SMQuickCompare/commit/77f729caaade136aa8cbf04b1ca1cd55ed60ae60))
+
+
 ## v1.9.1 (2026-07-27)
 
 ### Bug Fixes
