@@ -181,6 +181,9 @@ class EAMApp(TrameApp):
     # -------------------------------------------------------------------------
 
     def _build_ui(self, **_):
+        if self.server.hot_reload:
+            toolbars.reload(toolbars)
+
         with VAppLayout(self.server, fill_height=True) as self.ui:
             # Keyboard shortcut
             with tw.MouseTrap(
