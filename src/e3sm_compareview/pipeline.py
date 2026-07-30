@@ -198,9 +198,7 @@ class GridLines:
         self.perimeter_extract.SetInputConnection(geometry.output_port)
         self.perimeter_mapper = vtkDataSetMapper()
         self.perimeter_mapper.SetScalarVisibility(0)
-        self.perimeter_mapper.SetInputConnection(
-            self.perimeter_extract.GetOutputPort()
-        )
+        self.perimeter_mapper.SetInputConnection(self.perimeter_extract.GetOutputPort())
         self.perimeter_actor = vtkActor()
         self.perimeter_actor.SetMapper(self.perimeter_mapper)
         perimeter_prop = self.perimeter_actor.GetProperty()
@@ -308,7 +306,6 @@ class DataReader:
         self.atmos_extract = None
         self.atmos_proj = None
         self.atmos_surface = None
-        self._atmos_extract_mode = "range"
         self.extents = [-180.0, 180.0, -90.0, 90.0]
         self.moveextents = [-180.0, 180.0, -90.0, 90.0]
         self.clip_longitude = [-180.0, 180.0]
@@ -345,12 +342,8 @@ class DataReader:
         self._apply_clip_to_extract()
 
     def _apply_clip_to_extract(self):
-        if self._atmos_extract_mode == "trim":
-            self.atmos_extract.TrimLongitude = range_to_trim(self.clip_longitude, 180)
-            self.atmos_extract.TrimLatitude = range_to_trim(self.clip_latitude, 90)
-        else:
-            self.atmos_extract.LongitudeRange = self.clip_longitude
-            self.atmos_extract.LatitudeRange = self.clip_latitude
+        self.atmos_extract.LongitudeRange = self.clip_longitude
+        self.atmos_extract.LatitudeRange = self.clip_latitude
 
     def update(self, time=0.0):
         if not self.valid or self.atmos_proj is None:
@@ -662,14 +655,12 @@ if lon_np is not None:
                 registrationName="AtmosExtract",
                 Input=self.atmos_center,
             )
-            self._atmos_extract_mode = "trim"
         elif has_range_extract:
             self.atmos_center = None
             self.atmos_extract = EAMTransformAndExtract(  # noqa: F821
                 registrationName="AtmosExtract",
                 Input=self.prog_filter,
             )
-            self._atmos_extract_mode = "range"
         else:
             raise RuntimeError(
                 "No compatible atmospheric extract filter is available "
