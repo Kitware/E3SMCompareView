@@ -27,6 +27,7 @@ DEFAULT_STYLES = {
     "classes": "border-b-thin",
 }
 
+
 def to_kwargs(value):
     return {
         "v_show": js.is_active(value),
@@ -399,8 +400,8 @@ class SimulationControls(v3.VToolbar):
         super().__init__(**to_kwargs("simulation-controls"))
 
         with self:
-            v3.VIcon("mdi-database-cog-outline", classes="pl-6 opacity-50")
-            with v3.VBtnGroup(classes="mx-3", density="compact"):
+            v3.VIcon("mdi-database-cog-outline", classes="px-6 opacity-50")
+            with v3.VBtnGroup(density="compact"):
                 v3.VBtn(
                     "Two Sim",
                     variant="outlined",
@@ -451,21 +452,18 @@ class SimulationControls(v3.VToolbar):
                 ),
                 item_title="title",
                 item_value="value",
-                label="Comparison type",
-                chips=True,
                 density="compact",
-                variant="solo",
+                variant="flat",
                 hide_details=True,
-                classes="mx-1",
-                style="min-width: 14rem; max-width: 18rem;",
+                style="width: 16rem;max-width: 16rem;",
             ):
                 with v3.Template(v_slot_selection="{ item }"):
-                    with html.Div(classes="d-flex align-center py-1"):
+                    with html.Div("Comparison:", classes="ml-n3"):
                         v3.VChip(
                             "{{ item.raw.title }}",
                             size="small",
-                            color="primary",
                             variant="outlined",
+                            color="primary",
                         )
             with v3.VSelect(
                 v_else=True,
@@ -484,46 +482,41 @@ class SimulationControls(v3.VToolbar):
                 label="Comparison columns",
                 multiple=True,
                 density="compact",
-                variant="solo",
+                variant="plain",
                 hide_details=True,
-                classes="mx-1",
-                style="min-width: 0; max-width: 19rem;",
+                style="width: 21rem;max-width: 21rem;",
             ):
                 with v3.Template(v_slot_selection="{ item, index }"):
-                    with html.Div(
-                        v_if="index === 0",
-                        classes="d-flex align-center flex-nowrap w-100 overflow-hidden pt-1",
-                        style="max-width: 100%;",
-                    ):
-                        html.Div(
-                            "{{ selected_columns.length === 1 ? item.raw.title : `${selected_columns.length} selected` }}",
-                            classes="text-body-2 text-truncate",
-                        )
+                    v3.VChip(
+                        "{{ item.raw.title }}",
+                        size="small",
+                        variant="outlined",
+                        color="primary",
+                        classes="",
+                    )
 
-            v3.VSpacer()
-
+            v3.VDivider(vertical=True, classes="mx-2")
             with v3.VSelect(
                 v_model=("control_simulation_file", ""),
                 items=("simulation_configs", []),
                 item_title="label",
                 item_value="path",
-                label="Choose ctrl",
-                chips=True,
                 density="compact",
-                variant="solo",
+                variant="flat",
                 hide_details=True,
                 disabled=("simulation_configs.length === 0",),
-                classes="mx-1",
-                style="min-width: 14rem; max-width: 18rem;",
             ):
                 with v3.Template(v_slot_selection="{ item }"):
-                    with html.Div(classes="d-flex align-center py-1"):
+                    with html.Div("Ctrl:", classes="ml-n3"):
                         v3.VChip(
                             "{{ item.raw.label || item.raw.path.split('/').pop() }}",
                             size="small",
-                            color="primary",
                             variant="outlined",
+                            color="primary",
                         )
+            v3.VDivider(
+                vertical=True, classes="mx-2", v_if="comparison_mode === 'two-sim'"
+            )
             with v3.VSelect(
                 v_if="comparison_mode === 'two-sim'",
                 v_model=("two_sim_test_simulation_file", ""),
@@ -532,26 +525,21 @@ class SimulationControls(v3.VToolbar):
                 ),
                 item_title="label",
                 item_value="path",
-                label="Choose test",
-                chips=True,
                 density="compact",
-                variant="solo",
+                variant="flat",
                 hide_details=True,
                 disabled=(
                     "simulation_configs.filter(sim => sim.path !== control_simulation_file).length === 0",
                 ),
-                classes="mx-1",
-                style="min-width: 14rem; max-width: 18rem;",
             ):
                 with v3.Template(v_slot_selection="{ item }"):
-                    with html.Div(classes="d-flex align-center py-1"):
+                    with html.Div("Test:", classes="ml-n3"):
                         v3.VChip(
                             "{{ item.raw.label || item.raw.path.split('/').pop() }}",
                             size="small",
                             color="primary",
                             variant="outlined",
                         )
-
             v3.VBtn(
                 "Organize simulation collection",
                 v_if="comparison_mode === 'multi-sim'",
@@ -575,7 +563,9 @@ class SimulationControls(v3.VToolbar):
                         classes="border-b-thin",
                     ):
                         v3.VIcon("mdi-database-cog-outline", classes="ml-4 mr-2")
-                        v3.VLabel("Organize simulation collection", classes="text-subtitle-2")
+                        v3.VLabel(
+                            "Organize simulation collection", classes="text-subtitle-2"
+                        )
                         v3.VSpacer()
                         with v3.VTooltip():
                             with v3.Template(v_slot_activator="{ props }"):
@@ -614,97 +604,77 @@ class SimulationControls(v3.VToolbar):
                             classes="simulation-entry-row pb-2 d-flex align-center",
                         ):
                             with html.Div(
-                                classes="d-flex flex-column align-center justify-center mr-2 ga-1",
+                                classes="d-flex flex-column align-center justify-space-between mr-2 ga-6",
                             ):
-                                with v3.VTooltip(text="Move up"):
-                                    with v3.Template(v_slot_activator="{ props }"):
-                                        v3.VBtn(
-                                            v_bind="props",
-                                            icon="mdi-chevron-up",
-                                            size="small",
-                                            variant="outlined",
-                                            density="comfortable",
-                                            color="primary",
-                                            style="min-width: 34px; width: 34px; height: 34px;",
-                                            disabled=("idx === 0",),
-                                            click=(self._move_simulation, "[idx, -1]"),
-                                        )
-                                with v3.VTooltip(text="Move down"):
-                                    with v3.Template(v_slot_activator="{ props }"):
-                                        v3.VBtn(
-                                            v_bind="props",
-                                            icon="mdi-chevron-down",
-                                            size="small",
-                                            variant="outlined",
-                                            density="comfortable",
-                                            color="primary",
-                                            style="min-width: 34px; width: 34px; height: 34px;",
-                                            disabled=("idx >= simulation_configs.length - 1",),
-                                            click=(self._move_simulation, "[idx, 1]"),
-                                        )
+                                v3.VBtn(
+                                    v_tooltip="'Move up'",
+                                    icon="mdi-chevron-up",
+                                    size="small",
+                                    variant="outlined",
+                                    density="comfortable",
+                                    classes="rounded",
+                                    disabled=("idx === 0",),
+                                    click=(self._move_simulation, "[idx, -1]"),
+                                )
+                                v3.VBtn(
+                                    v_tooltip="'Move down'",
+                                    v_bind="props",
+                                    icon="mdi-chevron-down",
+                                    size="small",
+                                    variant="outlined",
+                                    density="comfortable",
+                                    classes="rounded",
+                                    disabled=("idx >= simulation_configs.length - 1",),
+                                    click=(self._move_simulation, "[idx, 1]"),
+                                )
                             with v3.VCard(
                                 variant="outlined",
                                 classes="flex-grow-1",
                             ):
                                 with v3.VCardText(classes="pa-3"):
-                                    with v3.VRow(dense=True, classes="align-center"):
-                                        with v3.VCol(cols=12, md=6):
-                                            v3.VTextField(
-                                                model_value=("entry.label",),
-                                                update_modelValue="utils.quickcompare.setSimulationLabel(entry.path, $event)",
-                                                label="Label",
-                                                density="compact",
-                                                variant="outlined",
-                                                hide_details=True,
-                                            )
-                                        with v3.VCol(cols=6, md=3):
-                                            with v3.VTooltip(
-                                                text=(
-                                                    "control_simulation_file === entry.path ? 'Current control simulation' : 'Set this simulation as control'",
-                                                ),
-                                            ):
-                                                with v3.Template(
-                                                    v_slot_activator="{ props }"
-                                                ):
-                                                    v3.VBtn(
-                                                        v_bind="props",
-                                                        text=(
-                                                            "control_simulation_file === entry.path ? 'Control' : 'Set control'",
-                                                        ),
-                                                        variant="outlined",
-                                                        color=(
-                                                            "control_simulation_file === entry.path ? 'primary' : 'default'",
-                                                        ),
-                                                        classes=(
-                                                            "`text-none w-100 ${control_simulation_file === entry.path ? '' : 'text-medium-emphasis'}`",
-                                                        ),
-                                                        style="min-width: 112px;",
-                                                        size="small",
-                                                        click=(
-                                                            self._on_control_selected,
-                                                            "[entry.path]",
-                                                        ),
-                                                    )
-                                        with v3.VCol(cols=6, md=3):
-                                            with v3.VTooltip(
-                                                text="Toggle simulation inclusion",
-                                            ):
-                                                with v3.Template(
-                                                    v_slot_activator="{ props }"
-                                                ):
-                                                    v3.VCheckbox(
-                                                        v_bind="props",
-                                                        model_value=(
-                                                            "control_simulation_file === entry.path ? true : entry.include",
-                                                        ),
-                                                        update_modelValue="utils.quickcompare.setSimulationInclude(entry.path, $event)",
-                                                        label="Include",
-                                                        density="compact",
-                                                        hide_details=True,
-                                                        disabled=(
-                                                            "control_simulation_file === entry.path",
-                                                        ),
-                                                    )
+                                    with html.Div(classes="d-flex align-center ga-2"):
+                                        v3.VTextField(
+                                            model_value=("entry.label",),
+                                            update_modelValue="utils.quickcompare.setSimulationLabel(entry.path, $event)",
+                                            label="Label",
+                                            density="compact",
+                                            variant="outlined",
+                                            hide_details=True,
+                                        )
+                                        v3.VBtn(
+                                            v_tooltip_right="control_simulation_file === entry.path ? 'Current control simulation' : 'Set this simulation as control'",
+                                            text=(
+                                                "control_simulation_file === entry.path ? 'Control' : 'Set control'",
+                                            ),
+                                            variant="outlined",
+                                            color=(
+                                                "control_simulation_file === entry.path ? 'primary' : 'default'",
+                                            ),
+                                            classes=(
+                                                "`text-none ${control_simulation_file === entry.path ? '' : 'text-medium-emphasis'}`",
+                                            ),
+                                            # style="min-width: 112px;",
+                                            height="40px",
+                                            width="120px",
+                                            click=(
+                                                self._on_control_selected,
+                                                "[entry.path]",
+                                            ),
+                                        )
+                                        v3.VSwitch(
+                                            v_tooltip_right="'Toggle simulation inclusion'",
+                                            model_value=(
+                                                "control_simulation_file === entry.path ? true : entry.include",
+                                            ),
+                                            update_modelValue="utils.quickcompare.setSimulationInclude(entry.path, $event)",
+                                            disabled=(
+                                                "control_simulation_file === entry.path",
+                                            ),
+                                            hide_details=True,
+                                            inset=True,
+                                            false_icon="mdi-close",
+                                            true_icon="mdi-check",
+                                        )
                                     html.Div(
                                         "{{ entry.path }}",
                                         classes="text-caption text-medium-emphasis mt-2",
