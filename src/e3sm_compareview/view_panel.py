@@ -311,7 +311,10 @@ class VariableView(TrameComponent):
             if range_min is not None and range_max is not None:
                 return (range_min, range_max)
 
-        if self.comparison_type in ("diff", "comp1", "comp2") and self.role != "control":
+        if (
+            self.comparison_type in ("diff", "comp1", "comp2")
+            and self.role != "control"
+        ):
             comparison_ranges = []
             for view_spec in view_specs:
                 if view_spec["role"] == "control":
@@ -491,9 +494,7 @@ class VariableView(TrameComponent):
 
                 with v3.VTooltip(
                     classes="tooltip-no-padding",
-                    disabled=(
-                        f"!picking_mode || hover_info !== '{self.array_name}'",
-                    ),
+                    disabled=(f"!picking_mode || hover_info !== '{self.array_name}'",),
                     open_on_hover=False,
                     model_value=(
                         f"picking_mode && !!probe_table && hover_info === '{self.array_name}'",

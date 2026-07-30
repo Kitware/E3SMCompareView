@@ -38,13 +38,13 @@ class LandingPage(v3.VContainer):
                 QuickCompare contrasts two or more simulations by displaying
                 the physical quantities as well as their differences between simulations.
                 A detailed {Bold("User's Guide")} can be found through
-                {Link("this link","https://kitware.github.io/QuickView/guides/quickcompare/")}.
+                {Link("this link", "https://kitware.github.io/QuickView/guides/quickcompare/")}.
                 {Bold("Bug reports and feature requests")} can be submitted through
-                {Link("GitHub","https://github.com/Kitware/E3SMQuickCompare/issues")}.
+                {Link("GitHub", "https://github.com/Kitware/E3SMQuickCompare/issues")}.
             """
             )
 
-#           v3.VImg(classes="rounded-lg", src=ASSETS.banner)
+            #           v3.VImg(classes="rounded-lg", src=ASSETS.banner)
 
             Title("Toolbar Icons")
 
@@ -187,16 +187,22 @@ class LandingPage(v3.VContainer):
                 {Link("Pacific Northwest National Laboratory", "https://www.pnnl.gov/")}
                 using funding from the U.S. Department of Energy's SciDAC program
                 through a partnership between
-                the {Link("Advanced Scientific Computing Reaserch (ASCR)",
-                "https://www.energy.gov/science/ascr/advanced-scientific-computing-research")} program and
-                the {Link("Biological and Environmental Research (BER)",
-                "https://www.energy.gov/science/ber/biological-and-environmental-research")} program.
-            """
-            )
+                the {
+                Link(
+                    "Advanced Scientific Computing Reaserch (ASCR)",
+                    "https://www.energy.gov/science/ascr/advanced-scientific-computing-research",
+                )
+            } program and
+                the {
+                Link(
+                    "Biological and Environmental Research (BER)",
+                    "https://www.energy.gov/science/ber/biological-and-environmental-research",
+                )
+            } program.
+            """)
 
             Paragraph(f"""
                 The development of QuickView used resources of the
-                {Link("National Energy Research Scientific Computing Center (NERSC)","https://www.nersc.gov/")},
+                {Link("National Energy Research Scientific Computing Center (NERSC)", "https://www.nersc.gov/")},
                 a U.S. Department of Energy User Facility.
-            """
-            )
+            """)
