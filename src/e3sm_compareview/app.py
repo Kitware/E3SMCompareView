@@ -675,8 +675,11 @@ class EAMApp(TrameApp):
             array_name = view_state.get("array_name", var_name)
 
             view_spec = next(
-                (c for c in self.view_manager.get_view_specs(var_name)
-                 if c["array_name"] == array_name),
+                (
+                    c
+                    for c in self.view_manager.get_view_specs(var_name)
+                    if c["array_name"] == array_name
+                ),
                 None,
             )
             view = self.view_manager.get_view(view_spec or array_name, view_type)
@@ -697,9 +700,7 @@ class EAMApp(TrameApp):
         self.state.aspect_ratio = layout["aspect-ratio"]
         self.state.active_layout = layout["active"]
         self.state.active_tools = [
-            tool
-            for tool in layout["tools"]
-            if tool != "comparison-controls"
+            tool for tool in layout["tools"] if tool != "comparison-controls"
         ]
         self.state.compact_drawer = not layout["help"]
 

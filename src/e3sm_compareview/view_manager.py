@@ -202,9 +202,7 @@ class ViewManager(TrameComponent):
                     source_spec = source_specs_by_path.get(row_spec.get("path"))
                     if source_spec is not None:
                         row["has_source"] = True
-                        row["source_display"] = picked_value(
-                            source_spec["array_name"]
-                        )
+                        row["source_display"] = picked_value(source_spec["array_name"])
 
                 rows.append(row)
 
@@ -672,10 +670,16 @@ class ViewManager(TrameComponent):
                 view_specs = self.get_view_specs(var_name)
                 if not view_specs:
                     continue
-                flat_vars.append((var_type, var_name, view_specs, self._group_orders.get(var_name)))
+                flat_vars.append(
+                    (var_type, var_name, view_specs, self._group_orders.get(var_name))
+                )
 
-        current_group_order = {var_name: saved for _, var_name, _, saved in flat_vars if saved is not None}
-        next_group_order_idx = (max(current_group_order.values()) + 1) if current_group_order else 1
+        current_group_order = {
+            var_name: saved for _, var_name, _, saved in flat_vars if saved is not None
+        }
+        next_group_order_idx = (
+            (max(current_group_order.values()) + 1) if current_group_order else 1
+        )
         for _, var_name, _, saved in flat_vars:
             if saved is None:
                 current_group_order[var_name] = next_group_order_idx
@@ -714,8 +718,7 @@ class ViewManager(TrameComponent):
                             with html.Div(
                                 var_name,
                                 classes=(
-                                    "text-subtitle-2 "
-                                    "font-weight-medium d-inline-block"
+                                    "text-subtitle-2 font-weight-medium d-inline-block"
                                 ),
                                 style="user-select: none; cursor: pointer;",
                             ):
@@ -743,14 +746,10 @@ class ViewManager(TrameComponent):
                                 style="transform: scale(0.75);",
                             )
                         with v3.VRow(dense=True):
-                            use_config_size = (
-                                self.state.comparison_mode == "multi-sim"
-                            )
+                            use_config_size = self.state.comparison_mode == "multi-sim"
                             if not use_config_size:
                                 views_per_row = max(1, len(view_specs))
-                                group_cols = max(
-                                    1, math.floor(12 / views_per_row)
-                                )
+                                group_cols = max(1, math.floor(12 / views_per_row))
                             panel_options = [
                                 {
                                     "name": vs["array_name"],
