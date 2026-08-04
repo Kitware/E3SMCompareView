@@ -103,6 +103,8 @@ class EAMApp(TrameApp):
                 "comparison_type": "diff",
                 "selected_columns": DEFAULT_TWO_SIM_COLUMNS,
                 "projection": ["Robinson"],
+                "spherical_center_lat": 0,
+                "spherical_center_lon": 0,
                 "dragged_simulation_path": "",
             }
         )
@@ -203,6 +205,7 @@ class EAMApp(TrameApp):
                 ProjectionEquidistant="projection = ['Cyl. Equidistant']",
                 ProjectionRobinson="projection = ['Robinson']",
                 ProjectionMollweide="projection = ['Mollweide']",
+                ProjectionSpherical="projection = ['Spherical']",
                 FileOpen=(self.toggle_toolbar, "['load-data']"),
                 SaveState="trigger('download_state_dialog')",
                 UploadState="utils.get('document').querySelector('#fileUpload').click()",
@@ -224,6 +227,7 @@ class EAMApp(TrameApp):
                 mt.bind("c", "ProjectionEquidistant")
                 mt.bind("r", "ProjectionRobinson")
                 mt.bind("m", "ProjectionMollweide")
+                mt.bind("n", "ProjectionSpherical")
 
                 mt.bind("f", "FileOpen")
                 mt.bind("e", "SaveState")
@@ -956,12 +960,20 @@ class EAMApp(TrameApp):
         self.view_manager.refresh_pipeline_inputs()
         self.view_manager.reset_camera()
 
-        # Hack to force reset_camera for "cyl mode"
-        # => may not be needed if we switch to rca
-        if " " in proj_str:
-            for _ in range(2):
-                await asyncio.sleep(0.1)
-                self.view_manager.reset_camera()
+    @change("spherical_center_lat", "spherical_center_lon", "projection")
+    def _on_center(self, spherical_center_lat, spherical_center_lon, projection, **_):
+        if self._projection_name(projection) != "Spherical":
+            self.source.Clip()
+            self.view_manager.camera_projection()
+            return
+
+        if spherical_center_lat is None or spherical_center_lon is None:
+            return
+
+        self.source.Clip(self.view_manager._clip_plane)
+        self.view_manager.center_camera(
+            float(spherical_center_lat), float(spherical_center_lon)
+        )
 
     def _on_slicing_change(self, var, ind_var, **_):
         self.source.UpdateSlicing(var, self.state[ind_var])

@@ -13,6 +13,7 @@ from trame.decorators import controller
 from trame.ui.html import DivLayout
 from trame.widgets import client, colormaps, html, rca
 from trame.widgets import vuetify3 as v3
+from vtkmodules.vtkCommonDataModel import vtkPlane
 from vtkmodules.vtkRenderingCore import (
     vtkCamera,
     vtkCellPicker,
@@ -56,6 +57,7 @@ class ViewManager(TrameComponent):
         super().__init__(server)
         self.use_image_stream = True
         self._camera = vtkCamera(parallel_projection=1)
+        self._clip_plane = vtkPlane()
         self._render_window = vtkRenderWindow()
         self._render_window.OffScreenRenderingOn()
         self._picker = vtkCellPicker(tolerance=0.0005)
@@ -247,6 +249,34 @@ class ViewManager(TrameComponent):
                 "comparison_mode": self.state.comparison_mode,
             }
         )
+
+    def camera_projection(self):
+        """Look straight down -Z, the orientation every flat projection wants."""
+        self._camera.focal_point = (0, 0, 0)
+        self._camera.position = (0, 0, 1)
+        self._camera.view_up = (0, 1, 0)
+        self.reset_camera()
+
+    def center_camera(self, lat, lon):
+        """Point the shared camera at (lat, lon) on the unit sphere."""
+        lat_rad = lat * math.pi / 180
+        lon_rad = lon * math.pi / 180
+        x = math.sin(lon_rad) * math.cos(lat_rad)
+        y = math.sin(lat_rad)
+        z = math.cos(lon_rad) * math.cos(lat_rad)
+        self._camera.focal_point = (0, 0, 0)
+        self._camera.position = (x, y, z)
+        self._camera.view_up = (
+            -math.sin(lon_rad),
+            2,
+            -math.cos(lon_rad),
+        )
+
+        # Plane through the origin facing the camera: everything behind it
+        # (the far hemisphere) gets clipped away.
+        self._clip_plane.origin = (0, 0, 0)
+        self._clip_plane.normal = (x, y, z)
+        self.reset_camera()
 
     def reset_camera(self, render=True):
         if self.layout_dirty or not self._last_vars:

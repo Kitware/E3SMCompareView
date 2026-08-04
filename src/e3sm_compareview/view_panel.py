@@ -157,6 +157,7 @@ class VariableView(TrameComponent):
         self.mapper = vtkPolyDataMapper()
         self.actor = vtkActor()
         self.actor.SetMapper(self.mapper)
+        self.actor.ForceOpaqueOn()
         self.renderer.AddActor(self.actor)
 
         # Lookup table color management
@@ -251,6 +252,7 @@ class VariableView(TrameComponent):
 
     def reset_camera(self):
         self.renderer.ResetCameraScreenSpace(0.9)
+        self.renderer.ResetCameraClippingRange()
         self.render()
 
     @staticmethod
