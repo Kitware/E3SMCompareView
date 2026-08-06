@@ -821,22 +821,6 @@ class EAMVisSource:
             return
         self.update(time=time)
 
-    def Clip(self, plane=None):
-        """Hide the back side of the annotations when rendering a globe.
-
-        Coastlines and grid lines are wireframes, so without a clipping plane
-        the far hemisphere draws straight through the front one.
-        """
-        mappers = (
-            self.grid_lines.mapper,
-            self.grid_lines.perimeter_mapper,
-            self.continent.mapper,
-        )
-        for mapper in mappers:
-            mapper.RemoveAllClippingPlanes()
-            if plane:
-                mapper.AddClippingPlane(plane)
-
     def UpdateSlicing(self, dimension, slice):
         self.data_reader.update_slicing(dimension, slice)
 

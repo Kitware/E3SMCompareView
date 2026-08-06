@@ -13,7 +13,6 @@ from trame.decorators import controller
 from trame.ui.html import DivLayout
 from trame.widgets import client, colormaps, html, rca
 from trame.widgets import vuetify3 as v3
-from vtkmodules.vtkCommonDataModel import vtkPlane
 from vtkmodules.vtkRenderingCore import (
     vtkCamera,
     vtkCellPicker,
@@ -57,7 +56,6 @@ class ViewManager(TrameComponent):
         super().__init__(server)
         self.use_image_stream = True
         self._camera = vtkCamera(parallel_projection=1)
-        self._clip_plane = vtkPlane()
         self._render_window = vtkRenderWindow()
         self._render_window.OffScreenRenderingOn()
         self._picker = vtkCellPicker(tolerance=0.0005)
@@ -271,11 +269,6 @@ class ViewManager(TrameComponent):
             2,
             -math.cos(lon_rad),
         )
-
-        # Plane through the origin facing the camera: everything behind it
-        # (the far hemisphere) gets clipped away.
-        self._clip_plane.origin = (0, 0, 0)
-        self._clip_plane.normal = (x, y, z)
         self.reset_camera()
 
     def reset_camera(self, render=True):
