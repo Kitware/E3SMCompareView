@@ -531,13 +531,7 @@ class EAMApp(TrameApp):
                                 "color_value_min": cmap.color_value_min,
                                 "color_value_max": cmap.color_value_max,
                                 "diverging": cmap.diverging,
-                                # Only persist a hand-typed abs_max; an empty
-                                # string restores the automatic symmetric range.
-                                "abs_max": (
-                                    cmap.abs_max
-                                    if cmap.diverging_manual_override
-                                    else ""
-                                ),
+                                "abs_max": cmap.saved_abs_max,
                                 "epsilon": cmap.epsilon,
                                 "cut_outside_range": cmap.cut_outside_range,
                             },
@@ -673,22 +667,6 @@ class EAMApp(TrameApp):
         self._update_field_avgs()
 
         # Update view states
-        _COLORMAP_KEYS = {
-            "preset",
-            "invert",
-            "color_blind",
-            "use_log_scale",
-            "discrete_log",
-            "n_discrete_colors",
-            "override_range",
-            "color_range",
-            "color_value_min",
-            "color_value_max",
-            "diverging",
-            "abs_max",
-            "epsilon",
-            "cut_outside_range",
-        }
         for view_state in saved_views:
             view_type = view_state["type"]
             var_name = view_state["name"]
@@ -705,11 +683,8 @@ class EAMApp(TrameApp):
             view = self.view_manager.get_view(view_spec or array_name, view_type)
 
             # Extract state
-            cfg = dict(view_state.get("config", {}))  # need a copy as we pop things out
-            cmap_cfg = view_state.get("colormap", {})
-            if not cmap_cfg:  # Backward compatibility
-                cmap_cfg = {k: cfg.pop(k) for k in list(cfg) if k in _COLORMAP_KEYS}
-
+            cfg = view_state["config"]
+            cmap_cfg = view_state["colormap"]
             cmap_cfg["color_range"] = tuple(cmap_cfg["color_range"])
 
             # Apply state

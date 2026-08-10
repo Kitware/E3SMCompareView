@@ -33,8 +33,9 @@ class CompareColormapConfig(ColormapConfig):
         super().__init__(*args, **kwargs)
 
     @property
-    def diverging_manual_override(self):
-        return self._diverging_manual_override
+    def saved_abs_max(self):
+        """Hand-typed abs_max, or "" meaning "re-derive it from the data"."""
+        return self.abs_max if self._diverging_manual_override else ""
 
     def _parse_abs_max(self):
         try:
@@ -253,6 +254,13 @@ class VariableView(TrameComponent):
     @property
     def camera(self):
         return self._camera
+
+    def edit_colormap(self):
+        self.ctrl.edit_lookup_table(
+            self.colormap._id,
+            self.array_name,
+            f"{self.base_variable} — {self.display_label}",
+        )
 
     def reset_camera(self):
         self.renderer.ResetCameraScreenSpace(0.9)
@@ -607,8 +615,5 @@ class VariableView(TrameComponent):
                     colormaps.HorizontalScalarBar(
                         self.name,
                         has_menu=False,
-                        click=(
-                            self.ctrl.edit_lookup_table,
-                            f"[{self.name}._id, '{self.array_name}']",
-                        ),
+                        click=self.edit_colormap,
                     )
