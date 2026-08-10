@@ -32,6 +32,10 @@ class CompareColormapConfig(ColormapConfig):
         self._diverging_manual_override = False
         super().__init__(*args, **kwargs)
 
+    @property
+    def diverging_manual_override(self):
+        return self._diverging_manual_override
+
     def _parse_abs_max(self):
         try:
             v = float(str(self.abs_max).strip())
@@ -600,4 +604,11 @@ class VariableView(TrameComponent):
                                         )
 
                 with self.colormap.provide_as(self.name):
-                    colormaps.HorizontalScalarBar(self.name, popup_location="top")
+                    colormaps.HorizontalScalarBar(
+                        self.name,
+                        has_menu=False,
+                        click=(
+                            self.ctrl.edit_lookup_table,
+                            f"[{self.name}._id, '{self.array_name}']",
+                        ),
+                    )

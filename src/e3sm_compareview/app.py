@@ -8,6 +8,7 @@ from pathlib import Path
 from e3sm_compareview import module as qc_module
 from e3sm_quickview import module as qv_module
 from e3sm_quickview.components import css
+from e3sm_quickview.components import dialogs as qv_dialogs
 from e3sm_quickview.utils import cli, compute
 from e3sm_quickview.utils.colors import get_type_color
 from trame.app import TrameApp, asynchronous, file_upload
@@ -293,6 +294,7 @@ class EAMApp(TrameApp):
                                 encoder="turbo-jpeg",
                                 ctx_name="view",
                             ):
+                                qv_dialogs.ColorMapEditor()
                                 with html.Div(
                                     classes="all-variables",
                                     v_if="variables_selected.length",
@@ -528,6 +530,16 @@ class EAMApp(TrameApp):
                                 "color_range": cmap.color_range,
                                 "color_value_min": cmap.color_value_min,
                                 "color_value_max": cmap.color_value_max,
+                                "diverging": cmap.diverging,
+                                # Only persist a hand-typed abs_max; an empty
+                                # string restores the automatic symmetric range.
+                                "abs_max": (
+                                    cmap.abs_max
+                                    if cmap.diverging_manual_override
+                                    else ""
+                                ),
+                                "epsilon": cmap.epsilon,
+                                "cut_outside_range": cmap.cut_outside_range,
                             },
                         }
                     )
@@ -672,6 +684,10 @@ class EAMApp(TrameApp):
             "color_range",
             "color_value_min",
             "color_value_max",
+            "diverging",
+            "abs_max",
+            "epsilon",
+            "cut_outside_range",
         }
         for view_state in saved_views:
             view_type = view_state["type"]
