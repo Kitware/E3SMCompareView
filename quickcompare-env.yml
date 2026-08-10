@@ -5,3 +5,4 @@ dependencies:
   - python=3.13
   - pip
   - paraview>=6
+  - numpy<2.4  # needed for mac compatibility
