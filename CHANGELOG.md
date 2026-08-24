@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v1.10.0 (2026-08-24)
+
+### Bug Fixes
+
+- Pin numpy<2.4 for mac compatibility
+  ([`cf08abb`](https://github.com/Kitware/E3SMQuickCompare/commit/cf08abb90a5e82e7585b54f4834042cbdd690c88))
+
+### Features
+
+- Port spherical projection from QuickView
+  ([`d5a3a88`](https://github.com/Kitware/E3SMQuickCompare/commit/d5a3a8861d2e6b54c3da7d45bac8a84defc67663))
+
+- Upgrade colormap editor to sync with quickview
+  ([`01736e8`](https://github.com/Kitware/E3SMQuickCompare/commit/01736e8ecef378dbb4577b35a68ef1516c5f7557))
+
+
 ## v1.9.2 (2026-07-30)
 
 ### Bug Fixes
