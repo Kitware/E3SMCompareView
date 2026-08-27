@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.10.1 (2026-08-27)
+
+### Bug Fixes
+
+- **ci**: Pin hdf5 version
+  ([`1311f0c`](https://github.com/Kitware/E3SMQuickCompare/commit/1311f0cfdae6ed2f80a147afc774de0c79c91514))
+
+### Continuous Integration
+
+- **tmp**: Fix semantic release version conflict
+  ([`ebcf174`](https://github.com/Kitware/E3SMQuickCompare/commit/ebcf17430b5d45398d61ec2621136c4d02283851))
+
+
 ## v1.10.0 (2026-08-24)
 
 ### Bug Fixes
